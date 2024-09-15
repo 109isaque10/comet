@@ -384,7 +384,7 @@ async def get_zilean(
     return results
 
 
-async def get_torrentio(log_name: str, type: str, full_id: str):
+async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list):
     results = []
     try:
         try:
@@ -405,7 +405,7 @@ async def get_torrentio(log_name: str, type: str, full_id: str):
             title_full = title.split("\n👤")[0]
             tracker = title.split("⚙️ ")[1].split("\n")[0]
 
-            results.append(
+            if tracker in indexers: results.append(
                 {
                     "Title": title_full,
                     "InfoHash": torrent["infoHash"],
