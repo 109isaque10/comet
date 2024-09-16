@@ -32,6 +32,8 @@ class RealDebrid:
 
     async def get_instant(self, chunk: list):
         try:
+            if chunk == '0':
+                return '0'
             response = await self.session.get(
                 f"{self.api_url}/torrents/instantAvailability/{'/'.join(chunk)}"
             )
@@ -65,6 +67,7 @@ class RealDebrid:
 
         if type == "series":
             for hash, details in availability.items():
+                
                 if "rd" not in details:
                     continue
 
@@ -175,6 +178,37 @@ class RealDebrid:
             unrestrict_link = await self.session.post(
                 f"{self.api_url}/unrestrict/link",
                 data={"link": get_magnet_info["links"][index - 1], "ip": self.ip},
+                proxy=self.proxy,
+            )
+            unrestrict_link = await unrestrict_link.json()
+
+            return unrestrict_link["download"]
+        except Exception as e:
+            logger.warning(
+                f"Exception while getting download link from Real-Debrid for {hash}|{index}: {e}"
+            )
+
+async def generate_hoster_link(self, url: str):
+        try:
+            check_blacklisted = await self.session.get("https://real-debrid.com/vpn")
+            check_blacklisted = await check_blacklisted.text()
+            if (
+                "Your ISP or VPN provider IP address is currently blocked on our website"
+                in check_blacklisted
+            ):
+                self.proxy = settings.DEBRID_PROXY_URL
+                if not self.proxy:
+                    logger.warning(
+                        "Real-Debrid blacklisted server's IP. No proxy found."
+                    )
+                else:
+                    logger.warning(
+                        f"Real-Debrid blacklisted server's IP. Switching to proxy {self.proxy} for {hash}|{index}"
+                    )
+
+            unrestrict_link = await self.session.post(
+                f"{self.api_url}/unrestrict/link",
+                data={"link": url, "ip": self.ip},
                 proxy=self.proxy,
             )
             unrestrict_link = await unrestrict_link.json()
