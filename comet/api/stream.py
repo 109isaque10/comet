@@ -22,6 +22,7 @@ from comet.utils.general import (
     config_check,
     get_debrid_extension,
     get_indexer_manager,
+    get_ddl,
     get_zilean,
     get_torrentio,
     filter,
