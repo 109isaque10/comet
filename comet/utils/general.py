@@ -275,8 +275,7 @@ async def get_indexer_manager(
     session: aiohttp.ClientSession,
     indexer_manager_type: str,
     indexers: list,
-    query: str,
-    full_id: str
+    query: str
 ):
     results = []
     try:
@@ -343,23 +342,6 @@ async def get_indexer_manager(
                 result["Tracker"] = result["indexer"]
 
                 results.append(result)
-        if settings.DDL == True:
-            response = await session.get(
-                f"{settings.DDL_URL}/{full_id}.json")
-            debrid = False
-            if not response:
-                response = await session.get(
-                f"{settings.DDL_URL}/debrid/{full_id}.json")
-                debrid = True
-            response = await response.json()
-            if not response:
-                return
-            result["Title"] = result["name"]
-            result["Size"] = result["size"]
-            result["Link"] = result["link"]
-            m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
-            result["Domain"] = m.group(1)
-            results.append(result)
     except Exception as e:
         logger.warning(
             f"Exception while getting {indexer_manager_type} results for {query} with {indexers}: {e}"
@@ -441,6 +423,56 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list):
 
     return results
 
+async def get_ddl(
+    type: str, full_id: str, season: int, episode: int
+):
+    results = []
+    try:
+        if type == 'series':
+            season_fill = season.zfill(2)
+            episode_fill = episode.zfill(2)
+            response = await session.get(
+                    f"{settings.DDL_URL}/{full_id}_{season_fill}_{episode_fill}.json")
+            debrid = False
+            if not response:
+                response = await session.get(
+                f"{settings.DDL_URL}/debrid/{full_id}_{season}_{episode}.json")
+                debrid = True
+            response = await response.json()
+            if not response:
+                return
+            result["Title"] = result["name"]
+            result["Size"] = result["size"]
+            result["Link"] = result["link"]
+            m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
+            result["Domain"] = m.group(1)
+            results.append(result)
+        else:
+            response = await session.get(
+                    f"{settings.DDL_URL}/{full_id}.json")
+            debrid = False
+            if not response:
+                response = await session.get(
+                f"{settings.DDL_URL}/debrid/{full_id}.json")
+                debrid = True
+            response = await response.json()
+            if not response:
+                return
+            result["Title"] = result["name"]
+            result["Size"] = result["size"]
+            result["Link"] = result["link"]
+            result["Debrid"] = debrid
+            m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
+            result["Tracker"] = m.group(1)
+            results.append(result)
+    except Exception as e:
+        logger.warning(
+            f"Exception while getting hosters for DDL: {e}"
+        )
+        pass
+
+    return results
+
 
 async def filter(torrents: list, name: str, year: int):
     results = []
@@ -472,7 +504,7 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
         return (index, torrent["InfoHash"].lower())
 
     url = torrent["Link"]
-
+    
     try:
         timeout = aiohttp.ClientTimeout(total=settings.GET_TORRENT_TIMEOUT)
         response = await session.get(url, allow_redirects=False, timeout=timeout)
