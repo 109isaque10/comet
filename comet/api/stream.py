@@ -320,13 +320,14 @@ async def stream(request: Request, b64config: str, type: str, id: str):
         tasks = []
         for i in range(len(torrents)):
             if torrents[i]["Domain"] is not None:
-                match torrents[i]["Title"]:
-                    case [*_, "1080p", *_]:
-                        resolution = "1080p"
-                    case [*_, "720p", *_]:
-                        resolution = "720p"
-                    case [*_, "480p", *_]:
-                        resolution = "480p"
+                if '1080p' in torrents[i]["Title"]:
+                    resolution = '1080p'
+                elif '720p' in torrents[i]["Title"]:
+                    resolution = '720p'
+                elif '480p' in torrents[i]["Title"]:
+                    resolution = '480p'
+                else:
+                    resolution = 'Unknown'
                 match torrents[i]["Debrid"]:
                     case True:
                         results.append(
