@@ -333,7 +333,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                         {
                             "name": f"[{debrid_extension}⚡] Comet {resolution}",
                             "title": torrents[i]["Title"],
-                            "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{torrents[i]["Link"]}",
+                            "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{torrents[i]['Link']}",
                         }
                         )
                     case False
