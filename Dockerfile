@@ -23,6 +23,6 @@ RUN apk add --no-cache \
 
 RUN pip install poetry
 COPY . .
-RUN poetry install --no-cache --no-root --without dev
+RUN poetry install --no-root --without dev
 
 ENTRYPOINT ["poetry", "run", "python", "-m", "comet.main"]
