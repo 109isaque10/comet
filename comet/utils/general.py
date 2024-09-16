@@ -431,14 +431,13 @@ async def get_ddl(
         if type == 'series':
             season_fill = str(season).zfill(2)
             episode_fill = str(episode).zfill(2)
-            response = await session.get(
-                    f"{settings.DDL_URL}/{full_id}_{season_fill}_{episode_fill}.json")
+            response = requests.get(
+                    f"{settings.DDL_URL}/{full_id}_{season_fill}_{episode_fill}.json").json()
             debrid = False
             if not response:
-                response = await session.get(
-                f"{settings.DDL_URL}/debrid/{full_id}_{season}_{episode}.json")
+                response = requests.get(
+                f"{settings.DDL_URL}/debrid/{full_id}_{season}_{episode}.json").json()
                 debrid = True
-            response = await response.json()
             if not response:
                 return
             result["Title"] = result["name"]
