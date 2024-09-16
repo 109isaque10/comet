@@ -254,6 +254,9 @@ async def stream(request: Request, b64config: str, type: str, id: str):
         if settings.SCRAPE_TORRENTIO:
             tasks.append(get_torrentio(log_name, type, full_id, config["indexers"]))
 
+        if settings.DDL:
+            tasks.append(get_ddl(type, full_id, season, episode))
+
         search_response = await asyncio.gather(*tasks)
         for results in search_response:
             for result in results:
@@ -316,6 +319,31 @@ async def stream(request: Request, b64config: str, type: str, id: str):
 
         tasks = []
         for i in range(len(torrents)):
+            if torrents[i]["Domain"] is not None:
+                match torrents[i]["Title"]:
+                    case [*_, "1080p", *_]:
+                        resolution = "1080p"
+                    case [*_, "720p", *_]:
+                        resolution = "720p"
+                    case [*_, "480p", *_]:
+                        resolution = "480p"
+                match torrents[i]["Debrid"]:
+                    case True:
+                        results.append(
+                        {
+                            "name": f"[{debrid_extension}⚡] Comet {resolution}",
+                            "title": torrents[i]["Title"],
+                            "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{torrents[i]["Link"]}",
+                        }
+                        )
+                    case False
+                        results.append(
+                        {
+                            "name": f"[{debrid_extension}⚡] Comet {resolution}",
+                            "title": torrents[i]["Title"],
+                            "url": torrents[i]["Link"],
+                        }
+                        )
             tasks.append(get_torrent_hash(session, (i, torrents[i])))
 
         torrent_hashes = await asyncio.gather(*tasks)
@@ -591,3 +619,114 @@ async def playback(request: Request, b64config: str, hash: str, index: str):
             return FileResponse("comet/assets/uncached.mp4")
 
         return RedirectResponse(download_link, status_code=302)
+
+@streams.get("/{b64config}/playback/{url}")
+async def playback(request: Request, b64config: str, url: str):
+    config = config_check(b64config)
+    if not config:
+        return FileResponse("comet/assets/invalidconfig.mp4")
+
+    if (
+        settings.PROXY_DEBRID_STREAM
+        and settings.PROXY_DEBRID_STREAM_PASSWORD == config["debridStreamProxyPassword"]
+        and config["debridApiKey"] == ""
+    ):
+        config["debridService"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_SERVICE
+        config["debridApiKey"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_APIKEY
+
+    async with aiohttp.ClientSession() as session:
+        current_time = time.time()
+        download_link = None
+
+        ip = get_client_ip(request)
+        if not download_link:
+            debrid = getDebrid(session, config, ip)
+            download_link = await debrid.generate_hoster_link(url)
+            if not download_link:
+                return FileResponse("comet/assets/uncached.mp4")
+
+        if (
+            settings.PROXY_DEBRID_STREAM
+            and settings.PROXY_DEBRID_STREAM_PASSWORD
+            == config["debridStreamProxyPassword"]
+        ):
+            active_ip_connections = await database.fetch_all(
+                "SELECT ip, COUNT(*) as connections FROM active_connections GROUP BY ip"
+            )
+            if any(
+                connection["ip"] == ip
+                and connection["connections"]
+                >= settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS
+                for connection in active_ip_connections
+            ):
+                return FileResponse("comet/assets/proxylimit.mp4")
+
+            proxy = None
+
+            class Streamer:
+                def __init__(self, id: str):
+                    self.id = id
+
+                    self.client = httpx.AsyncClient(proxy=proxy)
+                    self.response = None
+
+                async def stream_content(self, headers: dict):
+                    async with self.client.stream(
+                        "GET", download_link, headers=headers
+                    ) as self.response:
+                        async for chunk in self.response.aiter_raw():
+                            yield chunk
+
+                async def close(self):
+                    await database.execute(
+                        f"DELETE FROM active_connections WHERE id = '{self.id}'"
+                    )
+
+                    if self.response is not None:
+                        await self.response.aclose()
+                    if self.client is not None:
+                        await self.client.aclose()
+
+            range_header = request.headers.get("range", "bytes=0-")
+
+            response = await session.head(
+                download_link, headers={"Range": range_header}
+            )
+            if response.status == 503 and config["debridService"] == "alldebrid":
+                proxy = (
+                    settings.DEBRID_PROXY_URL
+                )  # proxy is not needed to proxy realdebrid stream
+
+                response = await session.head(
+                    download_link, headers={"Range": range_header}, proxy=proxy
+                )
+
+            if response.status == 206:
+                id = str(uuid.uuid4())
+                await database.execute(
+                    f"INSERT  {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO active_connections (id, ip, content, timestamp) VALUES (:id, :ip, :content, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
+                    {
+                        "id": id,
+                        "ip": ip,
+                        "content": str(response.url),
+                        "timestamp": current_time,
+                    },
+                )
+
+                streamer = Streamer(id)
+
+                return StreamingResponse(
+                    streamer.stream_content({"Range": range_header}),
+                    status_code=206,
+                    headers={
+                        "Content-Range": response.headers["Content-Range"],
+                        "Content-Length": response.headers["Content-Length"],
+                        "Accept-Ranges": "bytes",
+                    },
+                    background=BackgroundTask(streamer.close),
+                )
+
+            return FileResponse("comet/assets/uncached.mp4")
+
+        return RedirectResponse(download_link, status_code=302)
+
