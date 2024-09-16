@@ -336,7 +336,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                             "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{torrents[i]['Link']}",
                         }
                         )
-                    case False
+                    case False:
                         results.append(
                         {
                             "name": f"[{debrid_extension}⚡] Comet {resolution}",
