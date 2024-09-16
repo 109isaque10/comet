@@ -276,6 +276,7 @@ async def get_indexer_manager(
     indexer_manager_type: str,
     indexers: list,
     query: str,
+    full_id: str
 ):
     results = []
     try:
@@ -342,6 +343,23 @@ async def get_indexer_manager(
                 result["Tracker"] = result["indexer"]
 
                 results.append(result)
+        if settings.DDL == True:
+            response = await session.get(
+                f"{settings.DDL_URL}/{full_id}.json")
+            debrid = False
+            if not response:
+                response = await session.get(
+                f"{settings.DDL_URL}/debrid/{full_id}.json")
+                debrid = True
+            response = await response.json()
+            if not response:
+                return
+            result["Title"] = result["name"]
+            result["Size"] = result["size"]
+            result["Link"] = result["link"]
+            m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
+            result["Domain"] = m.group(1)
+            results.append(result)
     except Exception as e:
         logger.warning(
             f"Exception while getting {indexer_manager_type} results for {query} with {indexers}: {e}"
