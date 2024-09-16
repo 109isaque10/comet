@@ -429,8 +429,8 @@ async def get_ddl(
     results = []
     try:
         if type == 'series':
-            season_fill = season.zfill(2)
-            episode_fill = episode.zfill(2)
+            season_fill = str(season).zfill(2)
+            episode_fill = str(episode).zfill(2)
             response = await session.get(
                     f"{settings.DDL_URL}/{full_id}_{season_fill}_{episode_fill}.json")
             debrid = False
