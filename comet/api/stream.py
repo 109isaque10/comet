@@ -320,6 +320,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
 
         tasks = []
         results = []
+        f = 0
         debrid_extension = get_debrid_extension(config["debridService"])
         for i in range(len(torrents)):
             if torrents[i]["Domain"] is not None:
@@ -340,6 +341,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                             "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{torrents[i]['Link']}",
                         }
                         )
+                        f = i
                     case False:
                         results.append(
                         {
@@ -348,6 +350,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                             "url": torrents[i]["Link"],
                         }
                         )
+                        f = i
                         logger.info(str(results))
                 continue
             tasks.append(get_torrent_hash(session, (i, torrents[i])))
@@ -394,7 +397,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             f"{len_sorted_ranked_files} cached files found on {config['debridService']} for {log_name}"
         )
 
-        if len_sorted_ranked_files == 0:
+        if len_sorted_ranked_files == 0 and f != 0:
             return {"streams": []}
 
         sorted_ranked_files = {
