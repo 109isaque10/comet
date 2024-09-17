@@ -348,6 +348,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                             "url": torrents[i]["Link"],
                         }
                         )
+                        logger.info(str(results))
                 continue
             tasks.append(get_torrent_hash(session, (i, torrents[i])))
 
@@ -455,6 +456,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
 
                     continue
 
+        logger.info(str(results))
         return {"streams": results}
 
 
