@@ -319,6 +319,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                 return {"streams": []}
 
         tasks = []
+        results = []
         debrid_extension = get_debrid_extension(config["debridService"])
         for i in range(len(torrents)):
             if torrents[i]["Domain"] is not None:
@@ -423,8 +424,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
         logger.info(f"Results have been cached for {log_name}")
 
         balanced_hashes = get_balanced_hashes(sorted_ranked_files, config)
-
-        results = []
+        
         if (
             config["debridStreamProxyPassword"] != ""
             and settings.PROXY_DEBRID_STREAM
