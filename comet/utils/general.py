@@ -389,11 +389,11 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list):
     try:
         try:
             get_torrentio = requests.get(
-                f"https://torrentio.strem.fun/stream/{type}/{full_id}.json"
+                f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json"
             ).json()
         except:
             get_torrentio = requests.get(
-                f"https://torrentio.strem.fun/stream/{type}/{full_id}.json",
+                f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json",
                 proxies={
                     "http": settings.DEBRID_PROXY_URL,
                     "https": settings.DEBRID_PROXY_URL,
