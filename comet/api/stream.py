@@ -319,6 +319,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                 return {"streams": []}
 
         tasks = []
+        debrid_extension = get_debrid_extension(config["debridService"])
         for i in range(len(torrents)):
             if torrents[i]["Domain"] is not None:
                 if '1080p' in torrents[i]["Title"]:
@@ -419,8 +420,6 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             {"cache_key": cache_key, "json_data": json_data, "timestamp": time.time()},
         )
         logger.info(f"Results have been cached for {log_name}")
-
-        debrid_extension = get_debrid_extension(config["debridService"])
 
         balanced_hashes = get_balanced_hashes(sorted_ranked_files, config)
 
