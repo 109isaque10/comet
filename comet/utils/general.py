@@ -429,6 +429,8 @@ async def get_ddl(
     results = []
     try:
         if type == 'series':
+            info = full_id.split(":")
+            full_id = info[0]
             season_fill = str(season).zfill(2)
             episode_fill = str(episode).zfill(2)
             response = requests.get(
@@ -449,7 +451,6 @@ async def get_ddl(
             result["Link"] = result["link"]
             m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
             result["Domain"] = m.group(1)
-            logger.info(str(result))
             results.append(result)
         else:
             response = await session.get(
@@ -467,7 +468,7 @@ async def get_ddl(
             result["Link"] = result["link"]
             result["Debrid"] = debrid
             m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
-            result["Tracker"] = m.group(1)
+            result["Domain"] = m.group(1)
             results.append(result)
     except Exception as e:
         logger.warning(
@@ -475,7 +476,6 @@ async def get_ddl(
         )
         pass
 
-    logger.info(str(results))
     return results
 
 
