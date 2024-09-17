@@ -433,15 +433,17 @@ async def get_ddl(
             episode_fill = str(episode).zfill(2)
             response = requests.get(
                     f"{settings.DDL_URL}/{full_id}_{season_fill}_{episode_fill}.json")
-            response.raise_for_status()
             debrid = False
             if response.status_code != 200:
                 response = requests.get(
                 f"{settings.DDL_URL}/debrid/{full_id}_{season}_{episode}.json")
-                response.raise_for_status()
                 if response.status_code != 200:
                     return
+                else:
+                    result = response.json()
                 debrid = True
+            else:
+                result = response.json()
             result["Title"] = result["name"]
             result["Size"] = result["size"]
             result["Link"] = result["link"]
