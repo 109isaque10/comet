@@ -216,5 +216,5 @@ class RealDebrid:
             return unrestrict_link["download"]
         except Exception as e:
             logger.warning(
-                f"Exception while getting download link from Real-Debrid for {hash}|{index}: {e}"
+                f"Exception while getting hoster download link from Real-Debrid: {e}"
             )
