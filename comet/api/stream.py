@@ -347,6 +347,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                             "url": torrents[i]["Link"],
                         }
                         )
+                continue
             tasks.append(get_torrent_hash(session, (i, torrents[i])))
 
         torrent_hashes = await asyncio.gather(*tasks)
