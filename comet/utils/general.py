@@ -449,6 +449,7 @@ async def get_ddl(
             result["Title"] = result["name"]
             result["Size"] = result["size"]
             result["Link"] = result["link"]
+            result["Debrid"] = debrid
             m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
             result["Domain"] = m.group(1)
             results.append(result)
