@@ -454,16 +454,19 @@ async def get_ddl(
             result["Domain"] = m.group(1)
             results.append(result)
         else:
-            response = await session.get(
+            response = requests.get(
                     f"{settings.DDL_URL}/{full_id}.json")
             debrid = False
-            if not response:
-                response = await session.get(
+            if response.status_code != 200:
+                response = requests.get(
                 f"{settings.DDL_URL}/debrid/{full_id}.json")
+                if response.status_code != 200:
+                    return
+                else:
+                    result = response.json()
                 debrid = True
-            response = await response.json()
-            if not response:
-                return
+            else:
+                result = response.json()
             result["Title"] = result["name"]
             result["Size"] = result["size"]
             result["Link"] = result["link"]
