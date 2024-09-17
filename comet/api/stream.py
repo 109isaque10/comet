@@ -629,7 +629,7 @@ async def playback(request: Request, b64config: str, hash: str, index: str):
 
         return RedirectResponse(download_link, status_code=302)
 
-@streams.get("/{b64config}/playback/{url}")
+@streams.get("/{b64config}/playback/{url:path}")
 async def playback(request: Request, b64config: str, url: str):
     config = config_check(b64config)
     if not config:
