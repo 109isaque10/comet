@@ -207,6 +207,7 @@ class RealDebrid:
                     )
 
             logger.info(str(url))
+            url = url.replace('https://','').replace('http://','')
             unrestrict_link = await self.session.post(
                 f"{self.api_url}/unrestrict/link",
                 data={"link": url, "ip": self.ip},
