@@ -206,12 +206,14 @@ class RealDebrid:
                         f"Real-Debrid blacklisted server's IP. Switching to proxy {self.proxy} for {hash}|{index}"
                     )
 
+            logger.info(str(url))
             unrestrict_link = await self.session.post(
                 f"{self.api_url}/unrestrict/link",
                 data={"link": url, "ip": self.ip},
                 proxy=self.proxy,
             )
             unrestrict_link = await unrestrict_link.json()
+            logger.info(str(unrestrict_link))
 
             return unrestrict_link["download"]
         except Exception as e:
