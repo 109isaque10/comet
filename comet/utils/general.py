@@ -449,6 +449,7 @@ async def get_ddl(
             result["Link"] = result["link"]
             m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
             result["Domain"] = m.group(1)
+            logger.info(str(result))
             results.append(result)
         else:
             response = await session.get(
@@ -474,6 +475,7 @@ async def get_ddl(
         )
         pass
 
+    logger.info(str(results))
     return results
 
 
