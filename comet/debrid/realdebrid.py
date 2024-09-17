@@ -188,7 +188,7 @@ class RealDebrid:
                 f"Exception while getting download link from Real-Debrid for {hash}|{index}: {e}"
             )
 
-async def generate_hoster_link(self, url: str):
+    async def generate_hoster_link(self, url: str):
         try:
             check_blacklisted = await self.session.get("https://real-debrid.com/vpn")
             check_blacklisted = await check_blacklisted.text()
