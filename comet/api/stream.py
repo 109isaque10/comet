@@ -407,6 +407,8 @@ async def stream(request: Request, b64config: str, type: str, id: str):
         for torrent in torrents:
             if "Debrid" not in torrent:
                 torrents_by_hash = {torrent["InfoHash"]: torrent}
+
+        logger.info(str(torrents_by_hash))
         for hash in sorted_ranked_files:  # needed for caching
             sorted_ranked_files[hash]["data"]["title"] = files[hash]["title"]
             sorted_ranked_files[hash]["data"]["torrent_title"] = torrents_by_hash[hash]["Title"]
