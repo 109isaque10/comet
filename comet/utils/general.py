@@ -404,10 +404,7 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list):
         for torrent in get_torrentio["streams"]:
             title = torrent["title"]
             title_full = title.split("\n👤")[0]
-            tracker = title.split("⚙️ ")[1].split("\n")[0]
-            logger.info(str(torrent))
-            logger.info(str(tracker))
-            logger.info(str(indexers))
+            tracker = title.split("⚙️ ")[1].split("\n")[0].lower()
 
             if tracker in indexers: results.append(
                 {
