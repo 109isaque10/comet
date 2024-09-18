@@ -420,6 +420,8 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             )
             sorted_ranked_files[hash]["data"]["index"] = files[hash]["index"]
             if "Languages" in torrents_by_hash[hash]:
+                logger.info(str(torrents[hash]["Languages"]))
+                logger.info('got it too')
                 sorted_ranked_files[hash]["data"]["languages"] = torrents[hash]["Languages"]
 
         json_data = json.dumps(sorted_ranked_files).replace("'", "''")
