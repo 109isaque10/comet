@@ -416,7 +416,10 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
             languages = []
             for lang in config_languages:
                 emoji = get_language_emoji(lang)
+                logger.info(emoji)
+                logger.info(title)
                 if emoji in title:
+                    logger.info('got it')
                     languages.append(lang)
 
             if tracker in indexers: results.append(
@@ -579,6 +582,9 @@ def get_balanced_hashes(hashes: dict, config: dict):
 
         if max_size != 0 and hash_info["size"] > max_size:
             continue
+
+        logger.info(str(hash_info["languages"]))
+        logger.info(str(config_languages))
 
         if (
             not include_all_languages
