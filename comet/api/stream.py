@@ -408,13 +408,11 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             if "Domain" not in torrent:
                 torrents_by_hash = torrent["InfoHash"] 
         for hash in sorted_ranked_files:  # needed for caching
+            if hash not in torrents_by_hash:
+                continue
             sorted_ranked_files[hash]["data"]["title"] = files[hash]["title"]
-            sorted_ranked_files[hash]["data"]["torrent_title"] = torrents_by_hash[hash][
-                "Title"
-            ]
-            sorted_ranked_files[hash]["data"]["tracker"] = torrents_by_hash[hash][
-                "Tracker"
-            ]
+            sorted_ranked_files[hash]["data"]["torrent_title"] = torrents_by_hash[hash]["Title"]
+            sorted_ranked_files[hash]["data"]["tracker"] = torrents_by_hash[hash]["Tracker"]
             sorted_ranked_files[hash]["data"]["size"] = files[hash]["size"]
             torrent_size = torrents_by_hash[hash]["Size"]
             sorted_ranked_files[hash]["data"]["torrent_size"] = (
