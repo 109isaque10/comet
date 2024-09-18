@@ -323,7 +323,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
         f = 0
         debrid_extension = get_debrid_extension(config["debridService"])
         for i in range(len(torrents)):
-            if torrents[i]["Domain"] is not None:
+            if "Domain" in torrents[i]:
                 if '1080p' in torrents[i]["Title"]:
                     resolution = '1080p'
                 elif '720p' in torrents[i]["Title"]:
