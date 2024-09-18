@@ -416,7 +416,7 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list):
             languages = []
             for lang in config_languages:
                 emoji = get_language_emoji(lang)
-                if emoji in title
+                if emoji in title:
                     languages.append(lang)
 
             if tracker in indexers: results.append(
