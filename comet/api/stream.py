@@ -419,6 +419,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                 torrent_size if torrent_size else files[hash]["size"]
             )
             sorted_ranked_files[hash]["data"]["index"] = files[hash]["index"]
+            logger.info(str(torrents_by_hash[hash]))
             if "Languages" in torrents_by_hash[hash]:
                 logger.info(str(torrents[hash]["Languages"]))
                 logger.info('got it too')
