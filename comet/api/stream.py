@@ -419,6 +419,8 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                 torrent_size if torrent_size else files[hash]["size"]
             )
             sorted_ranked_files[hash]["data"]["index"] = files[hash]["index"]
+            if "Languages" in torrents_by_hash[hash]:
+                sorted_ranked_files[hash]["data"]["languages"] = torrents[hash]["Languages"]
 
         json_data = json.dumps(sorted_ranked_files).replace("'", "''")
         await database.execute(
@@ -442,13 +444,9 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                     "url": "https://comet.fast",
                 }
             )
-
-        logger.info(str(sorted_ranked_files.items()))
-        logger.info(str(balanced_hashes.items()))
+            
         for hash, hash_data in sorted_ranked_files.items():
             for resolution, hash_list in balanced_hashes.items():
-                logger.info(str(hash_list))
-                logger.info(str(hash))
                 if hash in hash_list:
                     data = hash_data["data"]
                     results.append(
