@@ -405,6 +405,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             for key, value in sorted_ranked_files.items()
         }
         for torrent in torrents:
+            logger.info(str(torrent))
             if "Domain" not in torrent:
                 torrents_by_hash = torrent["InfoHash"] 
         for hash in sorted_ranked_files:  # needed for caching
