@@ -384,7 +384,7 @@ async def get_zilean(
     return results
 
 
-async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list):
+async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, config: dict):
     results = []
     try:
         try:
