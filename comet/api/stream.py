@@ -443,8 +443,12 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                 }
             )
 
+        logger.info(str(sorted_ranked_files.items())
+        logger.info(str(balanced_hashes.items())
         for hash, hash_data in sorted_ranked_files.items():
             for resolution, hash_list in balanced_hashes.items():
+                logger.info(str(hash_list))
+                logger.info(str(hash))
                 if hash in hash_list:
                     data = hash_data["data"]
                     results.append(
