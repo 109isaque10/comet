@@ -400,26 +400,14 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
                 },
             ).json()
 
-        logger.info(str(get_torrentio))
         for torrent in get_torrentio["streams"]:
             title = torrent["title"]
             title_full = title.split("\n👤")[0]
             tracker = title.split("⚙️ ")[1].split("\n")[0].lower()
-            languages = [language.lower() for language in config["languages"]]
-            include_all_languages = "all" in languages
-            if not include_all_languages:
-                config_languages = [
-                    code
-                    for code, name in PTT.parse.LANGUAGES_TRANSLATION_TABLE.items()
-                    if name.lower() in languages
-                ]
             languages = []
-            for lang in config_languages:
+            for lang in languages_emojis:
                 emoji = get_language_emoji(lang)
-                logger.info(emoji)
-                logger.info(title)
                 if emoji in title:
-                    logger.info('got it')
                     languages.append(lang)
 
             if tracker in indexers: results.append(
