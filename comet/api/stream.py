@@ -253,7 +253,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             tasks.append(get_zilean(session, name, log_name, season, episode))
 
         if settings.SCRAPE_TORRENTIO:
-            tasks.append(get_torrentio(log_name, type, full_id, config["indexers"]))
+            tasks.append(get_torrentio(log_name, type, full_id, config["indexers"], config))
 
         if settings.DDL:
             tasks.append(get_ddl(type, full_id, season, episode))
