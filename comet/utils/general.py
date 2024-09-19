@@ -405,6 +405,7 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
             title_full = title.split("\n👤")[0]
             tracker = title.split("⚙️ ")[1].split("\n")[0].lower()
             languages = []
+            logger.info(str(torrent))
             filen = torrent['behaviorHints']['filename']
             for lang in languages_emojis:
                 emoji = get_language_emoji(lang)
