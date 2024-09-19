@@ -374,12 +374,14 @@ async def stream(request: Request, b64config: str, type: str, id: str):
         if len(torrents) == 0:
             return {"streams": []}
 
+        torrents_by_hash = {torrent["InfoHash"]: torrent for torrent in torrents if 'Domain' not in torrent}
         files = await debrid.get_files(
             [hash[1] for hash in torrent_hashes if hash[1] is not None],
             type,
             season,
             episode,
             kitsu,
+            (torrent['filen'] for torrent in torrents_by_hash if 'filen' in torrent)
         )
 
         ranked_files = set()
@@ -408,7 +410,6 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             key: (value.model_dump() if isinstance(value, Torrent) else value)
             for key, value in sorted_ranked_files.items()
         }
-        torrents_by_hash = {torrent["InfoHash"]: torrent for torrent in torrents if 'Domain' not in torrent}
 
         logger.info(str(torrents_by_hash))
         for hash in sorted_ranked_files:  # needed for caching
