@@ -88,6 +88,7 @@ class RealDebrid:
                                 continue
                             elif torrents_by_hash[hash]['filen'] != filename:
                                 continue
+                            filename = torrents_by_hash[hash]['filen']
 
                         if kitsu:
                             if filename_parsed.seasons:
@@ -98,6 +99,7 @@ class RealDebrid:
                                     continue
                                 elif torrents_by_hash[hash]['filen'] != filename:
                                     continue
+                                filename = torrents_by_hash[hash]['filen']
 
                         files[hash] = {
                             "index": index,
