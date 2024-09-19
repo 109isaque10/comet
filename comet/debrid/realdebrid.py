@@ -44,7 +44,7 @@ class RealDebrid:
             )
 
     async def get_files(
-        self, torrent_hashes: list, type: str, season: str, episode: str, kitsu: bool, filen: str = None
+        self, torrent_hashes: list, type: str, season: str, episode: str, kitsu: bool, torrents_by_hash: list = None
     ):
         chunk_size = 50
         chunks = [
@@ -84,9 +84,9 @@ class RealDebrid:
 
                         filename_parsed = parse(filename)
                         if episode not in filename_parsed.episodes:
-                            if not filen:     
+                            if 'filen' not in torrents_by_hash[hash]:     
                                 continue
-                            elif filen != filename:
+                            elif torrents_by_hash[hash]['filen'] != filename:
                                 continue
 
                         if kitsu:
@@ -94,9 +94,9 @@ class RealDebrid:
                                 continue
                         else:
                             if season not in filename_parsed.seasons:
-                                if not filen:
+                                if 'filen' not in torrents_by_hash[hash]:
                                     continue
-                                elif filen != filename:
+                                elif torrents_by_hash[hash]['filen'] != filename:
                                     continue
 
                         files[hash] = {
