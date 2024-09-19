@@ -423,13 +423,15 @@ async def stream(request: Request, b64config: str, type: str, id: str):
                 torrent_size if torrent_size else files[hash]["size"]
             )
             sorted_ranked_files[hash]["data"]["index"] = files[hash]["index"]
-            logger.info(str(torrents_by_hash[hash]))
+            logger.info(str(sorted_ranked_files[hash]))
+            logger.info(str(files[hash]))
             if "Languages" in torrents_by_hash[hash]:
                 logger.info(str(torrents_by_hash[hash]["Languages"]))
                 logger.info('got it too')
                 sorted_ranked_files[hash]["data"]["languages"] = torrents_by_hash[hash]["Languages"]
 
         json_data = json.dumps(sorted_ranked_files).replace("'", "''")
+        logger.info(str(sorted_ranked_files))
         await database.execute(
             f"INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO cache (cacheKey, results, timestamp) VALUES (:cache_key, :json_data, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
             {"cache_key": cache_key, "json_data": json_data, "timestamp": time.time()},
