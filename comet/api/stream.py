@@ -381,7 +381,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             season,
             episode,
             kitsu,
-            (torrent['filen'] for torrent in torrents_by_hash if 'filen' in torrent)
+            torrents_by_hash
         )
 
         ranked_files = set()
