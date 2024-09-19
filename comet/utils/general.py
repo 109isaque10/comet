@@ -340,6 +340,15 @@ async def get_indexer_manager(
                     result["downloadUrl"] if "downloadUrl" in result else None
                 )
                 result["Tracker"] = result["indexer"]
+                if 'legendado' in result["Title"].lower():
+                    result["Languages"] = ['en']
+                elif 'dual' in result["Title"].lower():
+                    result["Languages"] = ['en', 'pt']
+                elif 'nacional' in result["Title"].lower():
+                    result["Languages"] = ['pt']
+                elif 'dublado' in result["Title"].lower():
+                    result["Languages"] = ['pt']
+                    
 
                 results.append(result)
     except Exception as e:
