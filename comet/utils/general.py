@@ -573,9 +573,6 @@ def get_balanced_hashes(hashes: dict, config: dict):
         if max_size != 0 and hash_info["size"] > max_size:
             continue
 
-        logger.info(str(hash_info["languages"]))
-        logger.info(str(config_languages))
-
         if (
             not include_all_languages
             and not any(lang in hash_info["languages"] for lang in config_languages)
