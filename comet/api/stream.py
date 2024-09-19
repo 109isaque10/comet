@@ -263,7 +263,9 @@ async def stream(request: Request, b64config: str, type: str, id: str):
             tasks.append(get_ddl(type, full_id, season, episode))
 
         search_response = await asyncio.gather(*tasks)
+        logger.info(str(search_response))
         for results in search_response:
+            logger.info(str(results))
             for result in results:
                 torrents.append(result)
 
