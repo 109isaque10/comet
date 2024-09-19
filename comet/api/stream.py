@@ -264,7 +264,7 @@ async def stream(request: Request, b64config: str, type: str, id: str):
 
         search_response = await asyncio.gather(*tasks)
         for results in search_response:
-            if result is not None:
+            if results is not None:
                 for result in results:
                     torrents.append(result)
 
