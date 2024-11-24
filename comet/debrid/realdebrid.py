@@ -57,7 +57,6 @@ class RealDebrid:
             tasks.append(self.get_instant(chunk))
 
         responses = await asyncio.gather(*tasks)
-        logger.info('res: '+str(responses))
 
         availability = {}
         for response in responses:
