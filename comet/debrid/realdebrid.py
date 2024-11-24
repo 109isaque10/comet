@@ -46,7 +46,7 @@ class RealDebrid:
     async def get_files(
         self, torrent_hashes: list, type: str, season: str, episode: str, kitsu: bool, torrents_by_hash: list = None
     ):
-        chunk_size = 50
+        chunk_size = 100
         chunks = [
             torrent_hashes[i : i + chunk_size]
             for i in range(0, len(torrent_hashes), chunk_size)
@@ -78,7 +78,7 @@ class RealDebrid:
                         if not is_video(filename):
                             continue
 
-                        if "sample" in filename:
+                        if "sample" in filename.lower():
                             continue
 
                         filename_parsed = parse(filename)
@@ -119,7 +119,7 @@ class RealDebrid:
                         if not is_video(filename):
                             continue
 
-                        if "sample" in filename:
+                        if "sample" in filename.lower():
                             continue
 
                         files[hash] = {

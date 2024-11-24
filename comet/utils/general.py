@@ -1,20 +1,23 @@
 import base64
 import hashlib
-import json
 import re
 import aiohttp
 import bencodepy
 import PTT
 import asyncio
+import orjson
+import time
+import copy
 
 from RTN import parse, title_match
 from curl_cffi import requests
 from fastapi import Request
 
 from comet.utils.logger import logger
-from comet.utils.models import settings, ConfigModel
+from comet.utils.models import database, settings, ConfigModel
 
 languages_emojis = {
+    "unknown": "❓",  # Unknown
     "multi": "🌎",  # Dubbed
     "en": "🇬🇧",  # English
     "ja": "🇯🇵",  # Japanese
@@ -176,61 +179,46 @@ def translate(title: str):
 
 
 def is_video(title: str):
-    return title.endswith(
-        tuple(
-            [
-                ".mkv",
-                ".mp4",
-                ".avi",
-                ".mov",
-                ".flv",
-                ".wmv",
-                ".webm",
-                ".mpg",
-                ".mpeg",
-                ".m4v",
-                ".3gp",
-                ".3g2",
-                ".ogv",
-                ".ogg",
-                ".drc",
-                ".gif",
-                ".gifv",
-                ".mng",
-                ".avi",
-                ".mov",
-                ".qt",
-                ".wmv",
-                ".yuv",
-                ".rm",
-                ".rmvb",
-                ".asf",
-                ".amv",
-                ".m4p",
-                ".m4v",
-                ".mpg",
-                ".mp2",
-                ".mpeg",
-                ".mpe",
-                ".mpv",
-                ".mpg",
-                ".mpeg",
-                ".m2v",
-                ".m4v",
-                ".svi",
-                ".3gp",
-                ".3g2",
-                ".mxf",
-                ".roq",
-                ".nsv",
-                ".flv",
-                ".f4v",
-                ".f4p",
-                ".f4a",
-                ".f4b",
-            ]
-        )
+    video_extensions = (
+        ".3g2",
+        ".3gp",
+        ".amv",
+        ".asf",
+        ".avi",
+        ".drc",
+        ".f4a",
+        ".f4b",
+        ".f4p",
+        ".f4v",
+        ".flv",
+        ".gif",
+        ".gifv",
+        ".m2v",
+        ".m4p",
+        ".m4v",
+        ".mkv",
+        ".mov",
+        ".mp2",
+        ".mp4",
+        ".mpg",
+        ".mpeg",
+        ".mpv",
+        ".mng",
+        ".mpe",
+        ".mxf",
+        ".nsv",
+        ".ogg",
+        ".ogv",
+        ".qt",
+        ".rm",
+        ".rmvb",
+        ".roq",
+        ".svi",
+        ".webm",
+        ".wmv",
+        ".yuv",
     )
+    return title.endswith(video_extensions)
 
 
 def bytes_to_size(bytes: int):
@@ -248,27 +236,26 @@ def bytes_to_size(bytes: int):
 
 def config_check(b64config: str):
     try:
-        config = json.loads(base64.b64decode(b64config).decode())
+        config = orjson.loads(base64.b64decode(b64config).decode())
         validated_config = ConfigModel(**config)
         return validated_config.model_dump()
     except:
         return False
 
 
-def get_debrid_extension(debridService: str):
-    debrid_extension = None
-    if debridService == "realdebrid":
-        debrid_extension = "RD"
-    elif debridService == "alldebrid":
-        debrid_extension = "AD"
-    elif debridService == "premiumize":
-        debrid_extension = "PM"
-    elif debridService == "torbox":
-        debrid_extension = "TB"
-    elif debridService == "debridlink":
-        debrid_extension = "DL"
+def get_debrid_extension(debridService: str, debridApiKey: str = None):
+    if debridApiKey == "":
+        return "TORRENT"
 
-    return debrid_extension
+    debrid_extensions = {
+        "realdebrid": "RD",
+        "alldebrid": "AD",
+        "premiumize": "PM",
+        "torbox": "TB",
+        "debridlink": "DL",
+    }
+
+    return debrid_extensions.get(debridService, None)
 
 
 async def get_indexer_manager(
@@ -410,19 +397,19 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
             ).json()
 
         for torrent in get_torrentio["streams"]:
-            title = torrent["title"]
-            title_full = title.split("\n👤")[0]
-            tracker = title.split("⚙️ ")[1].split("\n")[0].lower()
+            title_full = torrent["title"]
+            title = title_full.split("\n")[0]
+            tracker = title_full.split("⚙️ ")[1].split("\n")[0].lower()
             languages = []
             filen = torrent['behaviorHints']['filename']
             for lang in languages_emojis:
                 emoji = get_language_emoji(lang)
-                if emoji in title:
+                if emoji in title_full:
                     languages.append(lang)
 
             if tracker in indexers: results.append(
                 {
-                    "Title": title_full,
+                    "Title": title,
                     "InfoHash": torrent["infoHash"],
                     "Size": None,
                     "Tracker": f"Torrentio|{tracker}",
@@ -500,7 +487,57 @@ async def get_ddl(
     return results
 
 
-async def filter(torrents: list, name: str, year: int):
+async def get_mediafusion(log_name: str, type: str, full_id: str):
+    results = []
+    try:
+        try:
+            get_mediafusion = requests.get(
+                f"{settings.MEDIAFUSION_URL}/stream/{type}/{full_id}.json"
+            ).json()
+        except:
+            get_mediafusion = requests.get(
+                f"{settings.MEDIAFUSION_URL}/stream/{type}/{full_id}.json",
+                proxies={
+                    "http": settings.DEBRID_PROXY_URL,
+                    "https": settings.DEBRID_PROXY_URL,
+                },
+            ).json()
+
+        for torrent in get_mediafusion["streams"]:
+            title_full = torrent["description"]
+            title = title_full.split("\n")[0].replace("📂 ", "").replace("/", "")
+            tracker = title_full.split("🔗 ")[1]
+
+            results.append(
+                {
+                    "Title": title,
+                    "InfoHash": torrent["infoHash"],
+                    "Size": torrent["behaviorHints"][
+                        "videoSize"
+                    ],  # not the pack size but still useful for prowlarr userss
+                    "Tracker": f"MediaFusion|{tracker}",
+                }
+            )
+
+        logger.info(f"{len(results)} torrents found for {log_name} with MediaFusion")
+
+    except Exception as e:
+        logger.warning(
+            f"Exception while getting torrents for {log_name} with MediaFusion, your IP is most likely blacklisted (you should try proxying Comet): {e}"
+        )
+        pass
+
+    return results
+
+
+async def filter(
+    torrents: list,
+    name: str,
+    year: int,
+    year_end: int,
+    aliases: dict,
+    remove_adult_content: bool,
+):
     results = []
     for torrent in torrents:
         index = torrent[0]
@@ -510,13 +547,26 @@ async def filter(torrents: list, name: str, year: int):
             title = title.split("\n")[1]
 
         parsed = parse(title)
-        if not title_match(name, parsed.parsed_title):
+
+        if remove_adult_content and parsed.adult:
             results.append((index, False))
             continue
 
-        if year and parsed.year and year != parsed.year:
+        if parsed.parsed_title and not title_match(
+            name, parsed.parsed_title, aliases=aliases
+        ):
             results.append((index, False))
             continue
+
+        if year and parsed.year:
+            if year_end is not None:
+                if not (year <= parsed.year <= year_end):
+                    results.append((index, False))
+                    continue
+            else:
+                if year < (parsed.year - 1) or year > (parsed.year + 1):
+                    results.append((index, False))
+                    continue
 
         results.append((index, True))
 
@@ -561,10 +611,12 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
 
 def get_balanced_hashes(hashes: dict, config: dict):
     max_results = config["maxResults"]
+    max_results_per_resolution = config["maxResultsPerResolution"]
 
     max_size = config["maxSize"]
     config_resolutions = [resolution.lower() for resolution in config["resolutions"]]
     include_all_resolutions = "all" in config_resolutions
+    remove_trash = config["removeTrash"]
 
     languages = [language.lower() for language in config["languages"]]
     include_all_languages = "all" in languages
@@ -577,6 +629,9 @@ def get_balanced_hashes(hashes: dict, config: dict):
 
     hashes_by_resolution = {}
     for hash, hash_data in hashes.items():
+        if remove_trash and not hash_data["fetch"]:
+            continue
+
         hash_info = hash_data["data"]
 
         if max_size != 0 and hash_info["size"] > max_size:
@@ -586,6 +641,7 @@ def get_balanced_hashes(hashes: dict, config: dict):
             not include_all_languages
             and not any(lang in hash_info["languages"] for lang in config_languages)
             and ("multi" not in languages if hash_info["dubbed"] else True)
+            and not (len(hash_info["languages"]) == 0 and "unknown" in languages)
         ):
             continue
 
@@ -597,16 +653,27 @@ def get_balanced_hashes(hashes: dict, config: dict):
             hashes_by_resolution[resolution] = []
         hashes_by_resolution[resolution].append(hash)
 
+    if config["reverseResultOrder"]:
+        hashes_by_resolution = {
+            res: lst[::-1] for res, lst in hashes_by_resolution.items()
+        }
+
     total_resolutions = len(hashes_by_resolution)
-    if max_results == 0 or total_resolutions == 0:
+    if max_results == 0 and max_results_per_resolution == 0 or total_resolutions == 0:
         return hashes_by_resolution
 
-    hashes_per_resolution = max_results // total_resolutions
+    hashes_per_resolution = (
+        max_results // total_resolutions
+        if max_results > 0
+        else max_results_per_resolution
+    )
     extra_hashes = max_results % total_resolutions
 
     balanced_hashes = {}
     for resolution, hash_list in hashes_by_resolution.items():
         selected_count = hashes_per_resolution + (1 if extra_hashes > 0 else 0)
+        if max_results_per_resolution > 0:
+            selected_count = min(selected_count, max_results_per_resolution)
         balanced_hashes[resolution] = hash_list[:selected_count]
         if extra_hashes > 0:
             extra_hashes -= 1
@@ -648,32 +715,34 @@ def format_metadata(data: dict):
 
 
 def format_title(data: dict, config: dict):
+    result_format = config["resultFormat"]
+    has_all = "All" in result_format
+
     title = ""
-    if "All" in config["resultFormat"] or "Title" in config["resultFormat"]:
+    if has_all or "Title" in result_format:
         title += f"{data['title']}\n"
 
-    if "All" in config["resultFormat"] or "Metadata" in config["resultFormat"]:
+    if has_all or "Metadata" in result_format:
         metadata = format_metadata(data)
         if metadata != "":
             title += f"💿 {metadata}\n"
 
-    if "All" in config["resultFormat"] or "Size" in config["resultFormat"]:
+    if has_all or "Size" in result_format:
         title += f"💾 {bytes_to_size(data['size'])} "
 
-    if "All" in config["resultFormat"] or "Tracker" in config["resultFormat"]:
+    if has_all or "Tracker" in result_format:
         title += f"🔎 {data['tracker'] if 'tracker' in data else '?'}"
 
-    if "All" in config["resultFormat"] or "Languages" in config["resultFormat"]:
+    if has_all or "Languages" in result_format:
         languages = data["languages"]
         if data["dubbed"]:
             languages.insert(0, "multi")
-        formatted_languages = (
-            "/".join(get_language_emoji(language) for language in languages)
-            if languages
-            else None
-        )
-        languages_str = "\n" + formatted_languages if formatted_languages else ""
-        title += f"{languages_str}"
+        if languages:
+            formatted_languages = "/".join(
+                get_language_emoji(language) for language in languages
+            )
+            languages_str = "\n" + formatted_languages
+            title += f"{languages_str}"
 
     if title == "":
         # Without this, Streamio shows SD as the result, which is confusing
@@ -688,3 +757,68 @@ def get_client_ip(request: Request):
         if "cf-connecting-ip" in request.headers
         else request.client.host
     )
+
+
+async def get_aliases(session: aiohttp.ClientSession, media_type: str, media_id: str):
+    aliases = {}
+    try:
+        response = await session.get(
+            f"https://api.trakt.tv/{media_type}/{media_id}/aliases"
+        )
+
+        for aliase in await response.json():
+            country = aliase["country"]
+            if country not in aliases:
+                aliases[country] = []
+
+            aliases[country].append(aliase["title"])
+    except:
+        pass
+
+    return aliases
+
+
+async def add_torrent_to_cache(
+    config: dict, name: str, season: int, episode: int, sorted_ranked_files: dict
+):
+    # trace of which indexers were used when cache was created - not optimal
+    indexers = config["indexers"].copy()
+    if settings.SCRAPE_TORRENTIO:
+        indexers.append("torrentio")
+    if settings.SCRAPE_MEDIAFUSION:
+        indexers.append("mediafusion")
+    if settings.ZILEAN_URL:
+        indexers.append("dmm")
+    for indexer in indexers:
+        hash = f"searched-{indexer}-{name}-{season}-{episode}"
+
+        searched = copy.deepcopy(sorted_ranked_files[list(sorted_ranked_files.keys())[0]])
+        searched["infohash"] = hash
+        searched["data"]["tracker"] = indexer
+
+        sorted_ranked_files[hash] = searched
+
+    values = [
+        {
+            "debridService": config["debridService"],
+            "info_hash": sorted_ranked_files[torrent]["infohash"],
+            "name": name,
+            "season": season,
+            "episode": episode,
+            "tracker": sorted_ranked_files[torrent]["data"]["tracker"]
+            .split("|")[0]
+            .lower(),
+            "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
+            "timestamp": time.time(),
+        }
+        for torrent in sorted_ranked_files
+    ]
+
+    query = f"""
+        INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
+        INTO cache (debridService, info_hash, name, season, episode, tracker, data, timestamp)
+        VALUES (:debridService, :info_hash, :name, :season, :episode, :tracker, :data, :timestamp)
+        {' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}
+    """
+
+    await database.execute_many(query, values)
