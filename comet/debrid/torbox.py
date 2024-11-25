@@ -127,6 +127,32 @@ class TorBox:
 
         return files
 
+    async def create_torrent(self, hash: str):
+        try:
+            get_torrents = await self.session.get(
+                f"{self.api_url}/torrents/mylist?bypass_cache=true"
+            )
+            get_torrents = await get_torrents.json()
+            exists = False
+            for torrent in get_torrents["data"]:
+                if torrent["hash"] == hash:
+                    exists = True
+                    return "created"
+            if not exists:
+                create_torrent = await self.session.post(
+                    f"{self.api_url}/torrents/createtorrent",
+                    data={"magnet": f"magnet:?xt=urn:btih:{hash}"},
+                )
+                create_torrent = await create_torrent.json()
+                if create_torrent["success"]:
+                    return "created"
+                else:
+                    return "failed"
+        except Exception as e:
+            logger.warning(
+                f"Exception while getting download link from TorBox for {hash}: {e}"
+            )
+
     async def generate_download_link(self, hash: str, index: str):
         try:
             get_torrents = await self.session.get(

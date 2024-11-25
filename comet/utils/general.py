@@ -372,7 +372,7 @@ async def get_zilean(
 
         logger.info(f"{len(results)} torrents found for {log_name} with Zilean")
     except Exception as e:
-        logger.warning(
+        logger.wTorrentioarning(
             f"Exception while getting torrents for {log_name} with Zilean: {e}"
         )
         pass
@@ -401,7 +401,7 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
             title = title_full.split("\n")[0]
             tracker = title_full.split("⚙️ ")[1].split("\n")[0].lower()
             languages = []
-            filen = torrent['behaviorHints']['filename']
+            filen = torrent['behaviorHints']['filename'] if 'behaviorHints' in torrent and 'filename' in torrent['behaviorHints'] else None
             for lang in languages_emojis:
                 emoji = get_language_emoji(lang)
                 if emoji in title_full:
@@ -454,6 +454,7 @@ async def get_ddl(
             result["Size"] = result["size"]
             result["Link"] = result["link"]
             result["Debrid"] = debrid
+            result["Tracker"] = "DDL"
             m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
             result["Domain"] = m.group(1)
             results.append(result)
@@ -474,6 +475,7 @@ async def get_ddl(
             result["Title"] = result["name"]
             result["Size"] = result["size"]
             result["Link"] = result["link"]
+            result["Tracker"] = "DDL"
             result["Debrid"] = debrid
             m = re.search('https?://([A-Za-z_0-9.-]+).*', result["Link"])
             result["Domain"] = m.group(1)
@@ -728,7 +730,7 @@ def format_title(data: dict, config: dict):
             title += f"💿 {metadata}\n"
 
     if has_all or "Size" in result_format:
-        title += f"💾 {bytes_to_size(data['size'])} "
+        title += f"💾 {bytes_to_size(data['size'])} " if data['size'] is int else f"💾 {data['size']}"
 
     if has_all or "Tracker" in result_format:
         title += f"🔎 {data['tracker'] if 'tracker' in data else '?'}"

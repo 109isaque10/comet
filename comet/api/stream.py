@@ -51,6 +51,54 @@ async def stream_noconfig(request: Request, type: str, id: str):
         ]
     }
 
+@streams.get("/{b64config}/createTorrent/{hash}")
+async def create_torrent(request: Request, b64config: str, hash: str):
+    config = config_check(b64config)
+    if not config:
+        return FileResponse("comet/assets/invalidconfig.mp4")
+
+    if (
+        settings.PROXY_DEBRID_STREAM
+        and settings.PROXY_DEBRID_STREAM_PASSWORD == config["debridStreamProxyPassword"]
+        and config["debridApiKey"] == ""
+    ):
+        config["debridService"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_SERVICE
+        config["debridApiKey"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_APIKEY
+
+    async with aiohttp.ClientSession(raise_for_status=True) as session:
+        debrid = getDebrid(
+            session,
+            config,
+            get_client_ip(request)
+            if (
+                not settings.PROXY_DEBRID_STREAM
+                or settings.PROXY_DEBRID_STREAM_PASSWORD
+                != config["debridStreamProxyPassword"]
+            )
+            else "",
+        )
+
+        check_premium = await debrid.check_premium()
+        if not check_premium:
+            additional_info = ""
+            if config["debridService"] == "alldebrid":
+                additional_info = "\nCheck your email!"
+
+            return {
+                "streams": [
+                    {
+                        "name": "[⚠️] Comet",
+                        "description": f"Invalid {config['debridService']} account.{additional_info}",
+                        "url": "https://comet.fast",
+                    }
+                ]
+            }
+
+        torrent = await debrid.create_torrent(hash)
+        if torrent == "failed":
+            return FileResponse("comet/assets/download_failed_v2.mp4")
+        elif torrent == "created":
+            return FileResponse("comet/assets/downloading_v2.mp4")
 
 @streams.get("/{b64config}/stream/{type}/{id}.json")
 async def stream(
@@ -415,6 +463,9 @@ async def stream(
         debrid_extension = get_debrid_extension(config["debridService"])
         for i in range(len(torrents)):
             if "Domain" in torrents[i]:
+                dat = torrents[i]
+                for g in dat:
+                    g = g.lower()
                 if '1080p' in torrents[i]["Title"]:
                     resolution = '1080p'
                 elif '720p' in torrents[i]["Title"]:
@@ -428,21 +479,28 @@ async def stream(
                         results.append(
                         {
                             "name": f"[{debrid_extension}⚡] Comet {resolution}",
-                            "title": torrents[i]["Title"],
+                            "description": format_title(dat, config),
                             "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{torrents[i]['Link']}",
+                            "behaviorHints": {
+                                "filename": torrents[i]["Title"],
+                                "bingeGroup": "comet|ddl",
+                            },
                         }
                         )
-                        f = i
+                        f = 1
                     case False:
                         results.append(
                         {
                             "name": f"[{debrid_extension}⚡] Comet {resolution}",
-                            "title": torrents[i]["Title"],
+                            "description": format_title(dat, config),
                             "url": torrents[i]["Link"],
+                            "behaviorHints": {
+                                "filename": torrents[i]["Title"],
+                                "bingeGroup": "comet|ddl",
+                            },
                         }
                         )
-                        f = i
-                        logger.info(str(results))
+                        f = 1
                 continue
             tasks.append(get_torrent_hash(session, (i, torrents[i])))
 
@@ -485,6 +543,27 @@ async def stream(
             except:
                 pass
 
+        uncached = []
+        for hash in torrents_by_hash:
+            if hash not in files:
+                uncached.append(torrents_by_hash[hash])
+
+        uncached_results = []        
+        if len(uncached) != 0:
+            for hash in uncached:
+                dat = torrents_by_hash[hash]
+                for g in dat:
+                    g = g.lower()
+                uncached_results.append({
+                    "name": f"[{debrid_extension}]⬇️ Comet",
+                    "description": format_title(hash, config),
+                    "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
+                    "behaviorHints": {
+                        "filename": uncached[hash]["Title"],
+                        "bingeGroup": "comet|"+uncached[hash]["InfoHash"],
+                    },
+                })
+
         sorted_ranked_files = sort_torrents(ranked_files)
 
         len_sorted_ranked_files = len(sorted_ranked_files)
@@ -492,7 +571,7 @@ async def stream(
             f"{len_sorted_ranked_files} cached files found on {config['debridService']} for {log_name}"
         )
 
-        if len_sorted_ranked_files == 0 and f != 0:
+        if len_sorted_ranked_files == 0 and f == 0:
             return {"streams": []}
 
         sorted_ranked_files = {
@@ -551,6 +630,8 @@ async def stream(
                         },
                     }
                 )
+        for result in uncached_results:
+            results.append(result)
 
         return {"streams": results}
 
