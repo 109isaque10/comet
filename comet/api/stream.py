@@ -556,7 +556,7 @@ async def stream(
                     g = g.lower()
                 uncached_results.append({
                     "name": f"[{debrid_extension}]⬇️ Comet",
-                    "description": format_title(hash, config),
+                    "description": format_title(dat, config),
                     "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
                     "behaviorHints": {
                         "filename": uncached[hash]["Title"],
