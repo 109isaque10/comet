@@ -543,12 +543,12 @@ async def stream(
             except:
                 pass
 
-        uncached = []
+        uncached = {}
         for hash in torrents_by_hash:
             if hash not in files:
-                uncached.append(torrents_by_hash[hash])
+                uncached[hash] = torrents_by_hash[hash]
 
-        uncached_results = []        
+        uncached_results = {}
         if len(uncached) != 0:
             for hash in uncached:
                 dat = torrents_by_hash[hash]
