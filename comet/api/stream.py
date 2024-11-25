@@ -551,15 +551,38 @@ async def stream(
         uncached_results = []
         if len(uncached) != 0:
             for hash in uncached:
-                dat = torrents_by_hash[hash]
-                for g in dat:
-                    g = g.lower()
+                dat = uncached[hash]
+                dat["title"] = uncached[hash]["Title"]
+                dat["tracker"] = uncached[hash]["Tracker"]
+                dat["size"] = uncached[hash]["Size"]
+                if "Languages" in uncached[hash]:
+                    dat["languages"] = uncached[hash]["Languages"]
+                if '2160p' in uncached[hash]["Title"].lower() or '4k' in uncached[hash]["Title"].lower():
+                    dat["resolution"] = '2160p'
+                if '1080p' in uncached[hash]["Title"].lower():
+                    dat["resolution"] = '1080p'
+                elif '720p' in uncached[hash]["Title"].lower():
+                    dat["resolution"] = '720p'
+                elif '480p' in uncached[hash]["Title"].lower():
+                    dat["resolution"] = '480p'
+                else:
+                    dat["resolution"] = 'Unknown'
+                if 'hdr10' in uncached[hash]["Title"].lower():
+                    dat["hdr"] = ["HDR10"]
+                elif 'hdr' in uncached[hash]["Title"].lower():
+                    dat["hdr"] = ["HDR"]
+                if 'dolby' in uncached[hash]["Title"].lower():
+                    dat["audio"] = ["Dolby"]
+                if '7.1' in uncached[hash]["Title"].lower():
+                    dat["channels"] = ["7.1"]
+                elif '5.1' in uncached[hash]["Title"].lower():
+                    dat["channels"] = ["5.1"]
                 uncached_results.append({
                     "name": f"[{debrid_extension}]⬇️ Comet",
                     "description": format_title(dat, config),
                     "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
                     "behaviorHints": {
-                        "filename": uncached[hash]["Title"],
+                        "filename": uncached[hash]["title"],
                         "bingeGroup": "comet|"+uncached[hash]["InfoHash"],
                     },
                 })
