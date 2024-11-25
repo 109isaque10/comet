@@ -558,15 +558,15 @@ async def stream(
                 if "Languages" in uncached[hash]:
                     dat["languages"] = uncached[hash]["Languages"]
                 if '2160p' in uncached[hash]["Title"].lower() or '4k' in uncached[hash]["Title"].lower():
-                    dat["resolution"] = '2160p'
+                    dat["quality"] = '2160p'
                 if '1080p' in uncached[hash]["Title"].lower():
-                    dat["resolution"] = '1080p'
+                    dat["quality"] = '1080p'
                 elif '720p' in uncached[hash]["Title"].lower():
-                    dat["resolution"] = '720p'
+                    dat["quality"] = '720p'
                 elif '480p' in uncached[hash]["Title"].lower():
-                    dat["resolution"] = '480p'
+                    dat["quality"] = '480p'
                 else:
-                    dat["resolution"] = 'Unknown'
+                    dat["quality"] = 'Unknown'
                 if 'hdr10' in uncached[hash]["Title"].lower():
                     dat["hdr"] = ["HDR10"]
                 elif 'hdr' in uncached[hash]["Title"].lower():
