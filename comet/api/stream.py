@@ -176,6 +176,8 @@ async def stream(
             indexers.append("mediafusion")
         if settings.ZILEAN_URL:
             indexers.append("dmm")
+        if settings.DDL:
+            indexers.append("ddl")
         indexers_json = orjson.dumps(indexers).decode("utf-8")
 
         all_sorted_ranked_files = {}
@@ -333,9 +335,6 @@ async def stream(
         if settings.SCRAPE_MEDIAFUSION:
             tasks.append(get_mediafusion(log_name, type, full_id))
 
-        if settings.SCRAPE_MEDIAFUSION:
-            tasks.append(get_mediafusion(log_name, type, full_id))
-
         search_response = await asyncio.gather(*tasks)
         for results in search_response:
             if results is not None:
@@ -353,6 +352,7 @@ async def stream(
                         "Zilean" if settings.ZILEAN_URL else None,
                         "Torrentio" if settings.SCRAPE_TORRENTIO else None,
                         "MediaFusion" if settings.SCRAPE_MEDIAFUSION else None,
+                        "DDL" if settings.DDL else None,
                     ]
                     if part
                 )
@@ -362,6 +362,7 @@ async def stream(
                         settings.ZILEAN_URL,
                         settings.SCRAPE_TORRENTIO,
                         settings.SCRAPE_MEDIAFUSION,
+                        settings.DDL,
                     ]
                 )
                 else ""
