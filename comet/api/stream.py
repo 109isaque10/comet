@@ -530,7 +530,6 @@ async def stream(
         )
 
         ranked_files = set()
-        torrents_by_hash = {torrent["InfoHash"]: torrent for torrent in torrents}
         for hash in files:
             try:
                 ranked_file = rtn.rank(
@@ -577,7 +576,6 @@ async def stream(
             key: (value.model_dump() if isinstance(value, Torrent) else value)
             for key, value in sorted_ranked_files.items()
         }
-        torrents_by_hash = {torrent["InfoHash"]: torrent for torrent in torrents}
         for hash in sorted_ranked_files:  # needed for caching
             sorted_ranked_files[hash]["data"]["title"] = files[hash]["title"]
             sorted_ranked_files[hash]["data"]["torrent_title"] = torrents_by_hash[hash]["Title"]
