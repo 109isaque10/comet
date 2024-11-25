@@ -323,6 +323,7 @@ async def get_indexer_manager(
                 )
                 result["Title"] = result["title"]
                 result["Size"] = result["size"]
+                result["Seeds"] = result["seeders"]
                 result["Link"] = (
                     result["downloadUrl"] if "downloadUrl" in result else None
                 )
@@ -400,6 +401,8 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
             title_full = torrent["title"]
             title = title_full.split("\n")[0]
             tracker = title_full.split("⚙️ ")[1].split("\n")[0].lower()
+            seeds = title_full.split("👤 ")[1].split(" 💾")[0].lower()
+            size = title_full.split("💾 ")[1].split(" ⚙️")[0].lower()
             languages = []
             filen = torrent['behaviorHints']['filename'] if 'behaviorHints' in torrent and 'filename' in torrent['behaviorHints'] else None
             for lang in languages_emojis:
@@ -411,9 +414,10 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
                 {
                     "Title": title,
                     "InfoHash": torrent["infoHash"],
-                    "Size": None,
+                    "Size": size,
                     "Tracker": f"Torrentio|{tracker}",
                     "Languages": languages,
+                    "Seeds": seeds,
                     "filen": filen
                 }
             )
@@ -773,7 +777,7 @@ def format_title(data: dict, config: dict):
             title += f"💿 {metadata}\n"
 
     if has_all or "Size" in result_format:
-        title += f"💾 {bytes_to_size(data['size'])} " if data['size'] is int else f"💾 {data['size']}"
+        title += f"💾 {bytes_to_size(data['size'])} " if not "." in str(data['size']) else f"💾 {data['size']}"
 
     if has_all or "Tracker" in result_format:
         title += f"🔎 {data['tracker'] if 'tracker' in data else '?'}"
