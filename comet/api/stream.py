@@ -587,6 +587,10 @@ async def stream(
                     dat["channels"] = ["5.1"]
                 else:
                     dat["channels"] = ["2.1"]
+                dat["bit_depth"] = ''
+                dat["network"] = ''
+                dat["group"] = ''
+                dat["codec"] = ''
                 uncached_results.append({
                     "name": f"[{debrid_extension}]⬇️ Comet",
                     "description": format_title(dat, config),
