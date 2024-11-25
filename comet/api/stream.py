@@ -557,9 +557,11 @@ async def stream(
                 dat["size"] = uncached[hash]["Size"]
                 if "Languages" in uncached[hash]:
                     dat["languages"] = uncached[hash]["Languages"]
+                else:
+                    dat["languages"] = ["English"]
                 if '2160p' in uncached[hash]["Title"].lower() or '4k' in uncached[hash]["Title"].lower():
                     dat["quality"] = '2160p'
-                if '1080p' in uncached[hash]["Title"].lower():
+                elif '1080p' in uncached[hash]["Title"].lower():
                     dat["quality"] = '1080p'
                 elif '720p' in uncached[hash]["Title"].lower():
                     dat["quality"] = '720p'
@@ -571,12 +573,20 @@ async def stream(
                     dat["hdr"] = ["HDR10"]
                 elif 'hdr' in uncached[hash]["Title"].lower():
                     dat["hdr"] = ["HDR"]
+                else:
+                    dat["hdr"] = ["SDR"]
                 if 'dolby' in uncached[hash]["Title"].lower():
                     dat["audio"] = ["Dolby"]
+                elif 'dts' in uncached[hash]["Title"].lower():
+                    dat["audio"] = ["DTS"]
+                else:
+                    dat["audio"] = ["Unknown"]  
                 if '7.1' in uncached[hash]["Title"].lower():
                     dat["channels"] = ["7.1"]
                 elif '5.1' in uncached[hash]["Title"].lower():
                     dat["channels"] = ["5.1"]
+                else:
+                    dat["channels"] = ["2.1"]
                 uncached_results.append({
                     "name": f"[{debrid_extension}]⬇️ Comet",
                     "description": format_title(dat, config),
