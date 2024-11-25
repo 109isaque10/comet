@@ -32,6 +32,7 @@ from comet.utils.general import (
     get_client_ip,
     get_aliases,
     add_torrent_to_cache,
+    format_data,
 )
 from comet.utils.logger import logger
 from comet.utils.models import database, rtn, settings, trackers
@@ -464,8 +465,7 @@ async def stream(
         for i in range(len(torrents)):
             if "Domain" in torrents[i]:
                 dat = torrents[i]
-                for g in dat:
-                    g = g.lower()
+                dat = format_data(dat)
                 if '1080p' in torrents[i]["Title"]:
                     resolution = '1080p'
                 elif '720p' in torrents[i]["Title"]:
@@ -552,46 +552,7 @@ async def stream(
         if len(uncached) != 0:
             for hash in uncached:
                 dat = uncached[hash]
-                dat["title"] = uncached[hash]["Title"]
-                dat["tracker"] = uncached[hash]["Tracker"]
-                dat["size"] = uncached[hash]["Size"]
-                if "Languages" in uncached[hash]:
-                    dat["languages"] = uncached[hash]["Languages"]
-                else:
-                    dat["languages"] = ["English"]
-                if '2160p' in uncached[hash]["Title"].lower() or '4k' in uncached[hash]["Title"].lower():
-                    dat["quality"] = '2160p'
-                elif '1080p' in uncached[hash]["Title"].lower():
-                    dat["quality"] = '1080p'
-                elif '720p' in uncached[hash]["Title"].lower():
-                    dat["quality"] = '720p'
-                elif '480p' in uncached[hash]["Title"].lower():
-                    dat["quality"] = '480p'
-                else:
-                    dat["quality"] = 'Unknown'
-                if 'hdr10' in uncached[hash]["Title"].lower():
-                    dat["hdr"] = ["HDR10"]
-                elif 'hdr' in uncached[hash]["Title"].lower():
-                    dat["hdr"] = ["HDR"]
-                else:
-                    dat["hdr"] = ["SDR"]
-                if 'dolby' in uncached[hash]["Title"].lower():
-                    dat["audio"] = ["Dolby"]
-                elif 'dts' in uncached[hash]["Title"].lower():
-                    dat["audio"] = ["DTS"]
-                else:
-                    dat["audio"] = ["Unknown"]  
-                if '7.1' in uncached[hash]["Title"].lower():
-                    dat["channels"] = ["7.1"]
-                elif '5.1' in uncached[hash]["Title"].lower():
-                    dat["channels"] = ["5.1"]
-                else:
-                    dat["channels"] = ["2.1"]
-                dat["bit_depth"] = ''
-                dat["network"] = ''
-                dat["group"] = ''
-                dat["codec"] = ''
-                dat["dubbed"] = ''
+                dat = format_data(dat)
                 uncached_results.append({
                     "name": f"[{debrid_extension}]⬇️ Comet",
                     "description": format_title(dat, config),

@@ -715,6 +715,49 @@ def format_metadata(data: dict):
 
     return "|".join(extras)
 
+def format_data(data: dict):
+    dat = {}
+    dat["title"] = data["Title"]
+    dat["tracker"] = data["Tracker"]
+    dat["size"] = data["Size"]
+    if "Languages" in data:
+        dat["languages"] = data["Languages"]
+    else:
+        dat["languages"] = ["English"]
+    if '2160p' in data["Title"].lower() or '4k' in data["Title"].lower():
+        dat["quality"] = '2160p'
+    elif '1080p' in data["Title"].lower():
+        dat["quality"] = '1080p'
+    elif '720p' in data["Title"].lower():
+        dat["quality"] = '720p'
+    elif '480p' in data["Title"].lower():
+        dat["quality"] = '480p'
+    else:
+        dat["quality"] = 'Unknown'
+    if 'hdr10' in data["Title"].lower():
+        dat["hdr"] = ["HDR10"]
+    elif 'hdr' in data["Title"].lower():
+        dat["hdr"] = ["HDR"]
+    else:
+        dat["hdr"] = ["SDR"]
+    if 'dolby' in data["Title"].lower():
+        dat["audio"] = ["Dolby"]
+    elif 'dts' in data["Title"].lower():
+        dat["audio"] = ["DTS"]
+    else:
+        dat["audio"] = ["Unknown"]  
+    if '7.1' in data["Title"].lower():
+        dat["channels"] = ["7.1"]
+    elif '5.1' in data["Title"].lower():
+        dat["channels"] = ["5.1"]
+    else:
+        dat["channels"] = ["2.1"]
+    dat["bit_depth"] = ''
+    dat["network"] = ''
+    dat["group"] = ''
+    dat["codec"] = ''
+    dat["dubbed"] = ''
+    return dat
 
 def format_title(data: dict, config: dict):
     result_format = config["resultFormat"]
