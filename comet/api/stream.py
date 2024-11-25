@@ -591,6 +591,7 @@ async def stream(
                 dat["network"] = ''
                 dat["group"] = ''
                 dat["codec"] = ''
+                dat["dubbed"] = ''
                 uncached_results.append({
                     "name": f"[{debrid_extension}]⬇️ Comet",
                     "description": format_title(dat, config),
