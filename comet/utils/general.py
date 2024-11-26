@@ -410,8 +410,8 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
                     size_unit = title_full.split("💾 ")[1].split(" ")[1].split("\n")[0]
                     size = size_str + " " + size_unit
                 except:
-                    size = None
-                    seeds = None
+                    size = 0.0
+                    seeds = 0
             languages = []
             filen = torrent['behaviorHints']['filename'] if 'behaviorHints' in torrent and 'filename' in torrent['behaviorHints'] else None
             for lang in languages_emojis:
