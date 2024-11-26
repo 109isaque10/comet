@@ -401,8 +401,17 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
             title_full = torrent["title"]
             title = title_full.split("\n")[0]
             tracker = title_full.split("⚙️ ")[1].split("\n")[0].lower()
-            seeds = title_full.split("👤 ")[1].split(" 💾")[0].lower()
-            size = title_full.split("💾 ")[1].split(" ⚙️")[0].lower()
+            size = None
+            seeds = None
+            if "👤" in title_full and "💾" in title_full:
+                try:
+                    seeds = int(title_full.split("👤 ")[1].split(" ")[0])
+                    size_str = title_full.split("💾 ")[1].split(" ")[0]
+                    size_unit = title_full.split("💾 ")[1].split(" ")[1].split("\n")[0]
+                    size = size_str + " " + size_unit
+                except:
+                    size = None
+                    seeds = None
             languages = []
             filen = torrent['behaviorHints']['filename'] if 'behaviorHints' in torrent and 'filename' in torrent['behaviorHints'] else None
             for lang in languages_emojis:
