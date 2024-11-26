@@ -554,13 +554,14 @@ async def stream(
                 dat = format_data(dat)
                 uncached_results.append({
                     "name": f"[{debrid_extension}]⬇️ Comet",
-                    "description": format_title(dat, config)+"\n👤 "+uncached[hash]["Seeds"],
+                    "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
                     "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
                     "behaviorHints": {
                         "filename": uncached[hash]["Title"],
                         "bingeGroup": "comet|"+uncached[hash]["InfoHash"],
                     },
                 })
+            uncached_results.sort(key=lambda x: x["description"].split(" 👤 ")[1], reverse=True)
 
         sorted_ranked_files = sort_torrents(ranked_files)
 
@@ -627,8 +628,7 @@ async def stream(
                         },
                     }
                 )
-        for result in uncached_results:
-            results.append(result)
+        results.extend(uncached_results)
 
         return {"streams": results}
 
