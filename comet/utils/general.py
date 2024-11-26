@@ -464,7 +464,7 @@ async def get_ddl(
             else:
                 result = response.json()
             result["Title"] = result["name"]
-            result["Size"] = result["size"]
+            result["Size"] = str(result["size"])+" Gb"
             result["Link"] = result["link"]
             result["Debrid"] = debrid
             result["Tracker"] = "DDL"
@@ -486,7 +486,7 @@ async def get_ddl(
             else:
                 result = response.json()
             result["Title"] = result["name"]
-            result["Size"] = result["size"]
+            result["Size"] = str(result["size"])+" Gb"
             result["Link"] = result["link"]
             result["Tracker"] = "DDL"
             result["Debrid"] = debrid
