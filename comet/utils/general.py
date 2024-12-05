@@ -786,7 +786,15 @@ def format_title(data: dict, config: dict):
             title += f"💿 {metadata}\n"
 
     if has_all or "Size" in result_format and data["size"] != None:
-        title += f"💾 {bytes_to_size(int(data['size']))} " if not "." in str(data['size']) else f"💾 {data['size']}"
+        b = "b" in str(data['size'])
+        p = "." in str(data['size'])
+        #title += f"💾 {bytes_to_size(int(data['size']))} " if not "." in str(data['size']) and not "b" in str(data['size']) elif "b" in str(data['size']) f"💾 {data['size']}"
+        if not b and not p:
+            title += f"💾 {bytes_to_size(int(data['size']))}"
+        elif not p:
+            title += f"💾 {data['size']}"
+        else:
+            title += f"💾 {data['size']}Gb"
 
     if has_all or "Tracker" in result_format:
         title += f"🔎 {data['tracker'] if 'tracker' in data else '?'}"
