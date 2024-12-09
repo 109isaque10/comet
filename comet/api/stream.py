@@ -358,7 +358,9 @@ async def stream(
                 search_terms = []
                 if not kitsu:
                     search_terms.append(f"{name} S{season:02d}E{episode:02d}")
-                    search_terms.append(f"{name} s{season:02d}e{episode:02d}")
+                    search_terms.append(f"{name} S{season:02d}")
+                    search_terms.append(f"{name} Complet")
+                    search_terms.append(f"{name} S01")
                 else:
                     search_terms.append(f"{name} {episode}")
             tasks.extend(
@@ -439,7 +441,7 @@ async def stream(
             tasks = []
             for chunk in chunks:
                 tasks.append(
-                    filter(chunk, name, year, year_end, aliases, remove_adult_content)
+                    filter(chunk, name, year, year_end, aliases, remove_adult_content, type, season)
                 )
 
             filtered_torrents = await asyncio.gather(*tasks)

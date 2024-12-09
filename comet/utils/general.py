@@ -310,7 +310,6 @@ async def get_indexer_manager(
                     or indexer["definitionName"].lower() in indexers
                 ):
                     indexers_id.append(indexer["id"])
-                    logger.error(indexer["id"])
 
             response = await session.get(
                 f"{settings.INDEXER_MANAGER_URL}/api/v1/search?query={query}&indexerIds={'&indexerIds='.join(str(indexer_id) for indexer_id in indexers_id)}&type=search",
@@ -340,7 +339,6 @@ async def get_indexer_manager(
                     
 
                 results.append(result)
-                logger.warning(result)
     except Exception as e:
         logger.warning(
             f"Exception while getting {indexer_manager_type} results for {query} with {indexers}: {e}"
@@ -554,6 +552,8 @@ async def filter(
     year_end: int,
     aliases: dict,
     remove_adult_content: bool,
+    type: str,
+    season: int = None,
 ):
     results = []
     for torrent in torrents:
@@ -583,6 +583,20 @@ async def filter(
             else:
                 if year < (parsed.year - 1) or year > (parsed.year + 1):
                     results.append((index, False))
+                    continue
+
+        if type == "series" and season and parsed.season:
+            if season != parsed.season:
+                results.append((index, False))
+                continue
+            elif "Complet" in title:
+                results.append((index, True))
+                continue
+            elif "S01-" in title:
+                s = re.match(r"S01-\d{2}", title)
+                s = re.match(r"S01-S\d{2}", title) if not s else s
+                if s and int(s.group(0).split("-")[1]) >= season:
+                    results.append((index, True))
                     continue
 
         results.append((index, True))
