@@ -551,6 +551,7 @@ async def stream(
 
         uncached_results = []
         if len(uncached) != 0:
+            f = 1
             for hash in uncached:
                 dat = uncached[hash]
                 dat = format_data(dat)
@@ -563,7 +564,8 @@ async def stream(
                         "bingeGroup": "comet|"+uncached[hash]["InfoHash"],
                     },
                 })
-            uncached_results.sort(key=lambda x: ('🇵🇹' not in x['description'].split(" 👤 ")[0].lower(), int(x['description'].split(" 👤 ")[1])), reverse=True)
+            uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
+            uncached_results.sort(key=lambda x: '🇵🇹' not in x['description'].split(" 👤 ")[0].lower())
 
         sorted_ranked_files = sort_torrents(ranked_files)
 
