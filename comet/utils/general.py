@@ -234,6 +234,22 @@ def bytes_to_size(bytes: int):
     return f"{round(bytes, 2)} {sizes[i]}"
 
 
+def size_to_bytes(size_str: str):
+    sizes = ["bytes", "kb", "mb", "gb", "tb"]
+    try:
+        value, unit = size_str.split()
+        value = float(value)
+        unit = unit.lower()
+
+        if unit not in sizes:
+            return None
+
+        multiplier = 1024 ** sizes.index(unit)
+        return int(value * multiplier)
+    except:
+        return None
+
+
 def config_check(b64config: str):
     try:
         config = orjson.loads(base64.b64decode(b64config).decode())
@@ -365,7 +381,7 @@ async def get_zilean(
                 object = {
                     "Title": result["raw_title"],
                     "InfoHash": result["info_hash"],
-                    "Size": result["size"],
+                    "Size": int(result["size"]),
                     "Tracker": "DMM",
                 }
 
@@ -872,7 +888,9 @@ async def add_torrent_to_cache(
     for indexer in indexers:
         hash = f"searched-{indexer}-{name}-{season}-{episode}"
 
-        searched = copy.deepcopy(sorted_ranked_files[list(sorted_ranked_files.keys())[0]])
+        searched = copy.deepcopy(
+            sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
+        )
         searched["infohash"] = hash
         searched["data"]["tracker"] = indexer
 

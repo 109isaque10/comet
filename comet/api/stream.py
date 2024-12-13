@@ -265,9 +265,7 @@ async def stream(
                 if "searched" in hash:
                     continue
 
-                all_sorted_ranked_files[hash] = orjson.loads(
-                    result["data"]
-                )
+                all_sorted_ranked_files[hash] = orjson.loads(result["data"])
 
         if len(all_sorted_ranked_files) != 0 and set(indexers).issubset(trackers_found):
             debrid_extension = get_debrid_extension(
@@ -355,7 +353,6 @@ async def stream(
 
             search_terms = [name]
             if type == "series":
-                search_terms = []
                 if not kitsu:
                     search_terms.append(f"{name} S{season:02d}E{episode:02d}")
                     search_terms.append(f"{name} S{season:02d}")
@@ -587,6 +584,9 @@ async def stream(
             sorted_ranked_files[hash]["data"]["tracker"] = torrents_by_hash[hash]["Tracker"]
             sorted_ranked_files[hash]["data"]["size"] = files[hash]["size"]
             torrent_size = torrents_by_hash[hash]["Size"]
+            sorted_ranked_files[hash]["data"]["size"] = (
+                files[hash]["size"]
+            )
             sorted_ranked_files[hash]["data"]["torrent_size"] = (
                 torrent_size if torrent_size else files[hash]["size"]
             )
@@ -773,22 +773,30 @@ async def playback(request: Request, b64config: str, hash: str, index: str):
             range_header = request.headers.get("range", "bytes=0-")
 
             try:
-                response = await session.head(
-                    download_link, headers={"Range": range_header}
-                )
+                if config["debridService"] != "torbox":
+                    response = await session.head(
+                        download_link, headers={"Range": range_header}
+                    )
+                else:
+                    response = await session.get(
+                        download_link, headers={"Range": range_header}
+                    )
             except aiohttp.ClientResponseError as e:
                 if e.status == 503 and config["debridService"] == "alldebrid":
-                        proxy = (
-                            settings.DEBRID_PROXY_URL
-                        ) # proxy is not needed to proxy realdebrid stream
+                    proxy = (
+                        settings.DEBRID_PROXY_URL
+                    )  # proxy is needed only to proxy alldebrid streams
 
-                        response = await session.head(
-                            download_link, headers={"Range": range_header}, proxy=proxy
-                        )
+                    response = await session.head(
+                        download_link, headers={"Range": range_header}, proxy=proxy
+                    )
                 else:
-                    raise
+                    logger.warning(f"Exception while proxying {download_link}: {e}")
+                    return
 
-            if response.status == 206:
+            if response.status == 206 or (
+                response.status == 200 and config["debridService"] == "torbox"
+            ):
                 id = str(uuid.uuid4())
                 await database.execute(
                     f"INSERT  {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO active_connections (id, ip, content, timestamp) VALUES (:id, :ip, :content, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
@@ -888,22 +896,30 @@ async def playback(request: Request, b64config: str, url: str):
             range_header = request.headers.get("range", "bytes=0-")
 
             try:
-                response = await session.head(
-                    download_link, headers={"Range": range_header}
-                )
+                if config["debridService"] != "torbox":
+                    response = await session.head(
+                        download_link, headers={"Range": range_header}
+                    )
+                else:
+                    response = await session.get(
+                        download_link, headers={"Range": range_header}
+                    )
             except aiohttp.ClientResponseError as e:
                 if e.status == 503 and config["debridService"] == "alldebrid":
-                        proxy = (
-                            settings.DEBRID_PROXY_URL
-                        ) # proxy is not needed to proxy realdebrid stream
+                    proxy = (
+                        settings.DEBRID_PROXY_URL
+                    )  # proxy is needed only to proxy alldebrid streams
 
-                        response = await session.head(
-                            download_link, headers={"Range": range_header}, proxy=proxy
-                        )
+                    response = await session.head(
+                        download_link, headers={"Range": range_header}, proxy=proxy
+                    )
                 else:
-                    raise
+                    logger.warning(f"Exception while proxying {download_link}: {e}")
+                    return
 
-            if response.status == 206:
+            if response.status == 206 or (
+                response.status == 200 and config["debridService"] == "torbox"
+            ):
                 id = str(uuid.uuid4())
                 await database.execute(
                     f"INSERT  {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO active_connections (id, ip, content, timestamp) VALUES (:id, :ip, :content, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
