@@ -945,6 +945,7 @@ async def add_uncached_to_cache(
 
     try:
         values = []
+        logger.warning(f"Sorted ranked files: {sorted_ranked_files}")
         for torrent in sorted_ranked_files:
             try:
                 value = {
