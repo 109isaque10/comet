@@ -943,34 +943,30 @@ async def add_uncached_to_cache(
         sorted_ranked_files[hash]["infohash"] = hash
         sorted_ranked_files[hash]["data"]["tracker"] = indexer
 
-    values = []
-    logger.info(f"Processing {len(sorted_ranked_files)} files for caching")
-    
-    for torrent in sorted_ranked_files:
-        try:
-            value = {
-                "debridService": config["debridService"],
-                "info_hash": sorted_ranked_files[torrent]["infohash"],
-                "name": name,
-                "season": season,
-                "episode": episode,
-                "tracker": sorted_ranked_files[torrent]["data"]["tracker"].split("|")[0].lower(),
-                "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
-                "timestamp": time.time(),
-            }
-            
-            # Log any null/empty values
-            null_fields = [k for k,v in value.items() if v is None or v == '']
-            if null_fields:
-                logger.warning(f"Null fields found for torrent {torrent}: {null_fields}")
-            else:
+    try:
+        values = []
+        for torrent in sorted_ranked_files:
+            try:
+                torrent_data = sorted_ranked_files[torrent]
+                value = {
+                    "debridService": config["debridService"],
+                    "info_hash": torrent_data.get("infohash", ""),
+                    "name": name,
+                    "season": season,
+                    "episode": episode,
+                    "tracker": torrent_data.get("data", {}).get("tracker", "unknown").lower(),
+                    "data": orjson.dumps(torrent_data).decode("utf-8"),
+                    "timestamp": time.time(),
+                }
                 values.append(value)
-                
-        except Exception as e:
-            logger.error(f"Error processing torrent {torrent} for cache: {str(e)}")
-            continue
+            except Exception as e:
+                logger.error(f"Error processing torrent {torrent}. Data: {sorted_ranked_files[torrent]}. Error: {str(e)}")
+                continue
 
-    logger.info(f"Successfully prepared {len(values)} valid entries for caching")
+        logger.warning(f"Values to be inserted: {len(values)}")
+    except Exception as e:
+        logger.error(f"Error processing torrents. Config: {config}. Error: {str(e)}")
+        return
 
     query = f"""
         INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
