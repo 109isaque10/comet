@@ -947,23 +947,29 @@ async def add_uncached_to_cache(
         sorted_ranked_files[hash]["data"]["tracker"] = indexer
         logger.warning(sorted_ranked_files[hash])
 
-    values = [
-        {
-            "debridService": config["debridService"],
-            "info_hash": sorted_ranked_files[torrent]["infohash"],
-            "name": name,
-            "season": season,
-            "episode": episode,
-            "tracker": sorted_ranked_files[torrent]["data"]["tracker"]
-            .split("|")[0]
-            .lower(),
-            "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
-            "timestamp": time.time(),
-        }
-        for torrent in sorted_ranked_files
-    ]
+    try:
+        values = []
+        for torrent in sorted_ranked_files:
+            try:
+                value = {
+                    "debridService": config["debridService"],
+                    "info_hash": sorted_ranked_files[torrent]["infohash"],
+                    "name": name,
+                    "season": season,
+                    "episode": episode,
+                    "tracker": sorted_ranked_files[torrent]["data"]["tracker"].lower(),
+                    "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
+                    "timestamp": time.time(),
+                }
+                values.append(value)
+            except Exception as e:
+                logger.error(f"Error processing torrent {torrent}: {str(e)}")
+                continue
 
-    logger.warning(values)
+        logger.warning(f"Values to be inserted: {len(values)}")
+    except Exception as e:
+        logger.error(f"Error processing torrents: {str(e)}")
+        return
 
     query = f"""
         INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
