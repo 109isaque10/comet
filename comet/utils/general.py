@@ -943,21 +943,34 @@ async def add_uncached_to_cache(
         sorted_ranked_files[hash]["infohash"] = hash
         sorted_ranked_files[hash]["data"]["tracker"] = indexer
 
-    values = [
-        {
-            "debridService": config["debridService"],
-            "info_hash": sorted_ranked_files[torrent]["infohash"],
-            "name": name,
-            "season": season,
-            "episode": episode,
-            "tracker": sorted_ranked_files[torrent]["data"]["tracker"]
-            .split("|")[0]
-            .lower(),
-            "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
-            "timestamp": time.time(),
-        }
-        for torrent in sorted_ranked_files
-    ]
+    values = []
+    logger.info(f"Processing {len(sorted_ranked_files)} files for caching")
+    
+    for torrent in sorted_ranked_files:
+        try:
+            value = {
+                "debridService": config["debridService"],
+                "info_hash": sorted_ranked_files[torrent]["infohash"],
+                "name": name,
+                "season": season,
+                "episode": episode,
+                "tracker": sorted_ranked_files[torrent]["data"]["tracker"].split("|")[0].lower(),
+                "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
+                "timestamp": time.time(),
+            }
+            
+            # Log any null/empty values
+            null_fields = [k for k,v in value.items() if v is None or v == '']
+            if null_fields:
+                logger.warning(f"Null fields found for torrent {torrent}: {null_fields}")
+            else:
+                values.append(value)
+                
+        except Exception as e:
+            logger.error(f"Error processing torrent {torrent} for cache: {str(e)}")
+            continue
+
+    logger.info(f"Successfully prepared {len(values)} valid entries for caching")
 
     query = f"""
         INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
