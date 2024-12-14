@@ -958,6 +958,7 @@ async def add_uncached_to_cache(
                     "timestamp": time.time(),
                 }
                 values.append(value)
+                logger.warning(f"Value to be inserted: {value}")
             except Exception as e:
                 logger.error(e)
                 continue
