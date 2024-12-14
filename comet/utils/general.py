@@ -938,11 +938,13 @@ async def add_uncached_to_cache(
         searched = copy.deepcopy(
             sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
         )
-        searched = format_data(searched)
-        searched["infohash"] = hash
-        searched["tracker"] = indexer
-
-        sorted_ranked_files[hash] = searched
+        searched_data = format_data(searched)
+        sorted_ranked_files[hash] = {
+            "infohash": hash,
+            "data": searched_data,
+            "fetch": True
+        }
+        sorted_ranked_files[hash]["data"]["tracker"] = indexer
 
     values = [
         {
@@ -951,7 +953,7 @@ async def add_uncached_to_cache(
             "name": name,
             "season": season,
             "episode": episode,
-            "tracker": sorted_ranked_files[torrent]["tracker"]
+            "tracker": sorted_ranked_files[torrent]["data"]["tracker"]
             .split("|")[0]
             .lower(),
             "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
