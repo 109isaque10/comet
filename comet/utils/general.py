@@ -945,6 +945,7 @@ async def add_uncached_to_cache(
             "fetch": True
         }
         sorted_ranked_files[hash]["data"]["tracker"] = indexer
+        logger.warning(sorted_ranked_files[hash])
 
     values = [
         {
@@ -961,6 +962,8 @@ async def add_uncached_to_cache(
         }
         for torrent in sorted_ranked_files
     ]
+
+    logger.warning(values)
 
     query = f"""
         INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}

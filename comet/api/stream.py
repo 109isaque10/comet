@@ -595,14 +595,19 @@ async def stream(
             if "Languages" in torrents_by_hash[hash]:
                 sorted_ranked_files[hash]["data"]["languages"] = torrents_by_hash[hash]["Languages"]
 
-        background_tasks.add_task(
-            add_torrent_to_cache, config, name, season, episode, sorted_ranked_files
-        )
-        background_tasks.add_task(
-            add_uncached_to_cache, config, name, season, episode, uncached
-        )
-
-        logger.info(f"Results have been cached for {log_name}")
+        try:
+            logger.info(f"Adding {len(sorted_ranked_files)} torrents to cache for {log_name}")
+            background_tasks.add_task(
+                add_torrent_to_cache, config, name, season, episode, sorted_ranked_files
+            )
+            if uncached:
+                logger.info(f"Adding {len(uncached)} uncached torrents to cache for {log_name}")
+                background_tasks.add_task(
+                    add_uncached_to_cache, config, name, season, episode, uncached
+                )
+            logger.info(f"Results have been cached for {log_name}")
+        except Exception as e:
+            logger.error(f"Failed to add tasks to cache: {e}")
 
         balanced_hashes = get_balanced_hashes(sorted_ranked_files, config)
         
