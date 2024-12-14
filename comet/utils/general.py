@@ -947,25 +947,24 @@ async def add_uncached_to_cache(
         values = []
         for torrent in sorted_ranked_files:
             try:
-                torrent_data = sorted_ranked_files[torrent]
                 value = {
                     "debridService": config["debridService"],
-                    "info_hash": torrent_data.get("infohash", ""),
+                    "info_hash": sorted_ranked_files[torrent]["infohash"],
                     "name": name,
                     "season": season,
                     "episode": episode,
-                    "tracker": torrent_data.get("data", {}).get("tracker", "unknown").lower(),
-                    "data": orjson.dumps(torrent_data).decode("utf-8"),
+                    "tracker": sorted_ranked_files[torrent]["data"]["tracker"].lower(),
+                    "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
                     "timestamp": time.time(),
                 }
                 values.append(value)
             except Exception as e:
-                logger.error(f"Error processing torrent {torrent}. Data: {sorted_ranked_files[torrent]}. Error: {str(e)}")
+                logger.error(e)
                 continue
 
         logger.warning(f"Values to be inserted: {len(values)}")
     except Exception as e:
-        logger.error(f"Error processing torrents. Config: {config}. Error: {str(e)}")
+        logger.error(f"Error processing torrents: {str(e)}")
         return
 
     query = f"""
