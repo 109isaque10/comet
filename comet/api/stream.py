@@ -33,6 +33,7 @@ from comet.utils.general import (
     get_aliases,
     add_torrent_to_cache,
     format_data,
+    add_uncached_to_cache,
 )
 from comet.utils.logger import logger
 from comet.utils.models import database, rtn, settings, trackers
@@ -596,6 +597,9 @@ async def stream(
 
         background_tasks.add_task(
             add_torrent_to_cache, config, name, season, episode, sorted_ranked_files
+        )
+        background_tasks.add_task(
+            add_uncached_to_cache, config, name, season, episode, uncached
         )
 
         logger.info(f"Results have been cached for {log_name}")

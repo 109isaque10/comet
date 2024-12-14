@@ -920,3 +920,51 @@ async def add_torrent_to_cache(
     """
 
     await database.execute_many(query, values)
+
+async def add_uncached_to_cache(
+    config: dict, name: str, season: int, episode: int, sorted_ranked_files: dict
+):
+    # trace of which indexers were used when cache was created - not optimal
+    indexers = config["indexers"].copy()
+    if settings.SCRAPE_TORRENTIO:
+        indexers.append("torrentio")
+    if settings.SCRAPE_MEDIAFUSION:
+        indexers.append("mediafusion")
+    if settings.ZILEAN_URL:
+        indexers.append("dmm")
+    for indexer in indexers:
+        hash = f"searched-{indexer}-{name}-{season}-{episode}"
+
+        searched = copy.deepcopy(
+            sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
+        )
+        searched = format_data(searched)
+        searched["infohash"] = hash
+        searched["tracker"] = indexer
+
+        sorted_ranked_files[hash] = searched
+
+    values = [
+        {
+            "debridService": config["debridService"],
+            "info_hash": sorted_ranked_files[torrent]["infohash"],
+            "name": name,
+            "season": season,
+            "episode": episode,
+            "tracker": sorted_ranked_files[torrent]["tracker"]
+            .split("|")[0]
+            .lower(),
+            "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
+            "timestamp": time.time(),
+        }
+        for torrent in sorted_ranked_files
+    ]
+
+    query = f"""
+        INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
+        INTO cache (debridService, info_hash, name, season, episode, tracker, data, timestamp)
+        VALUES (:debridService, :info_hash, :name, :season, :episode, :tracker, :data, :timestamp)
+        {' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}
+    """
+
+    await database.execute_many(query, values)
