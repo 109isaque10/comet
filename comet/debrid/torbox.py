@@ -67,7 +67,7 @@ class TorBox:
                 for torrent in result["data"]:
                     torrent_files = torrent["files"]
                     for file in torrent_files:
-                        filename = file["name"].split("/")[1]
+                        filename = file["name"].split("/")[-1]
 
                         if not is_video(filename):
                             continue
