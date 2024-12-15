@@ -633,9 +633,9 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
         timeout = aiohttp.ClientTimeout(total=settings.GET_TORRENT_TIMEOUT)
         #response = await session.get(url, allow_redirects=False, timeout=timeout)
         response = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        response = await request.urlopen(response)
+        response = request.urlopen(response, timeout=settings.GET_TORRENT_TIMEOUT)
         if response.status == 200:
-            torrent_data = await response.read()
+            torrent_data = response.read()
             torrent_dict = bencodepy.decode(torrent_data)
             info = bencodepy.encode(dict(torrent_dict.get(b'info')))
             hash = hashlib.sha1(info).hexdigest()
@@ -651,13 +651,9 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
             hash = match.group(1).upper()
 
         return (index, hash.lower())
-    except aiohttp.ClientError as e:
+    except request.HTTPDefaultErrorHandler as e:
         logger.warning(
             f"Client error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
-        )
-    except asyncio.TimeoutError as e:
-        logger.warning(
-            f"Timeout error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
         )
     except bencodepy.BencodeDecodeError as e:
         logger.warning(
