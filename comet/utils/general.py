@@ -12,6 +12,7 @@ import copy
 from RTN import parse, title_match
 from curl_cffi import requests
 from fastapi import Request
+import urllib.request as request
 
 from comet.utils.logger import logger
 from comet.utils.models import database, settings, ConfigModel
@@ -630,11 +631,13 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
     
     try:
         timeout = aiohttp.ClientTimeout(total=settings.GET_TORRENT_TIMEOUT)
-        response = await session.get(url, allow_redirects=False, timeout=timeout)
+        #response = await session.get(url, allow_redirects=False, timeout=timeout)
+        response = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        response = await request.urlopen(response)
         if response.status == 200:
             torrent_data = await response.read()
             torrent_dict = bencodepy.decode(torrent_data)
-            info = bencodepy.encode(torrent_dict[b"info"])
+            info = bencodepy.encode(dict(torrent_dict.get(b'info')))
             hash = hashlib.sha1(info).hexdigest()
         else:
             location = response.headers.get("Location", "")
