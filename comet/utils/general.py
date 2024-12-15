@@ -12,7 +12,6 @@ import copy
 from RTN import parse, title_match
 from curl_cffi import requests
 from fastapi import Request
-import urllib.request as request
 
 from comet.utils.logger import logger
 from comet.utils.models import database, settings, ConfigModel
@@ -631,13 +630,11 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
     
     try:
         timeout = aiohttp.ClientTimeout(total=settings.GET_TORRENT_TIMEOUT)
-        #response = await session.get(url, allow_redirects=False, timeout=timeout)
-        response = request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        response = request.urlopen(response, timeout=settings.GET_TORRENT_TIMEOUT)
+        response = await session.get(url, allow_redirects=False, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
         if response.status == 200:
-            torrent_data = response.read()
+            torrent_data = await response.read()
             torrent_dict = bencodepy.decode(torrent_data)
-            info = bencodepy.encode(dict(torrent_dict.get(b'info')))
+            info = bencodepy.encode(torrent_dict[b"info"])
             hash = hashlib.sha1(info).hexdigest()
         else:
             location = response.headers.get("Location", "")
@@ -651,9 +648,13 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
             hash = match.group(1).upper()
 
         return (index, hash.lower())
-    except request.HTTPDefaultErrorHandler as e:
+    except aiohttp.ClientError as e:
         logger.warning(
             f"Client error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
+        )
+    except asyncio.TimeoutError as e:
+        logger.warning(
+            f"Timeout error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
         )
     except bencodepy.BencodeDecodeError as e:
         logger.warning(
