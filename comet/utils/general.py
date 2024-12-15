@@ -648,12 +648,24 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
             hash = match.group(1).upper()
 
         return (index, hash.lower())
+    except aiohttp.ClientError as e:
+        logger.warning(
+            f"Client error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
+        )
+    except asyncio.TimeoutError as e:
+        logger.warning(
+            f"Timeout error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
+        )
+    except bencodepy.BencodeDecodeError as e:
+        logger.warning(
+            f"Bencode decode error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
+        )
     except Exception as e:
         logger.warning(
-            f"Exception while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
+            f"Unexpected error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
         )
 
-        return (index, None)
+    return (index, None)
 
 
 def get_balanced_hashes(hashes: dict, config: dict):
