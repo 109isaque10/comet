@@ -897,7 +897,6 @@ async def add_torrent_to_cache(
         indexers.append("mediafusion")
     if settings.ZILEAN_URL:
         indexers.append("dmm")
-    logger.warning(f"Indexers: {indexers}")
     for indexer in indexers:
         try:
             hash = f"searched-{indexer}-{name}-{season}-{episode}"
@@ -948,7 +947,6 @@ async def add_uncached_to_cache(
         indexers.append("mediafusion")
     if settings.ZILEAN_URL:
         indexers.append("dmm")
-    logger.warning(f"Indexers: {indexers}")
     for indexer in indexers:
         try:
             hash = f"searched-{indexer}-{name}-{season}-{episode}"
@@ -956,11 +954,11 @@ async def add_uncached_to_cache(
             sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
             )
             searched_data = format_data(searched)
-            searched[hash]["data"] = searched_data
-            searched[hash]["infohash"] = hash
+            searched["data"] = searched_data
+            searched["infohash"] = hash
             searched["data"]["seeders"] = searched["Seeds"]
-            searched[hash]["data"]["tracker"] = indexer
-            sorted_ranked_files[hash] = searched[hash]
+            searched["data"]["tracker"] = indexer
+            sorted_ranked_files[hash] = searched
             logger.warning(f"uncached: {sorted_ranked_files[hash]}")
         except Exception as e:
             logger.error(f"Error processing indexer {indexer}: {str(e)}")
