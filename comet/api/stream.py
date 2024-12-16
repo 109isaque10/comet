@@ -266,7 +266,7 @@ async def stream(
                 hash = result["info_hash"]
                 if "searched" in hash:
                     continue
-
+                logger.warning(hash)
                 all_sorted_ranked_files[hash] = orjson.loads(result["data"])
             uncached_results = await database.fetch_all(
                 f"""
@@ -295,7 +295,7 @@ async def stream(
                 hash = result["info_hash"]
                 if "searched" in hash:
                     continue
-
+                logger.warning(hash)
                 uncached[hash] = orjson.loads(result["data"])
 
         if len(all_sorted_ranked_files) != 0 and set(indexers).issubset(trackers_found):
