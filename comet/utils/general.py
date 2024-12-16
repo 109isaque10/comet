@@ -981,7 +981,7 @@ async def add_uncached_to_cache(
 
     query = f"""
         INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
-        INTO cache (debridService, info_hash, name, season, episode, tracker, data, timestamp)
+        INTO uncache (debridService, info_hash, name, season, episode, tracker, data, timestamp)
         VALUES (:debridService, :info_hash, :name, :season, :episode, :tracker, :data, :timestamp)
         {' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}
     """

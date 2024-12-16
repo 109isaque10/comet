@@ -267,6 +267,35 @@ async def stream(
                     continue
 
                 all_sorted_ranked_files[hash] = orjson.loads(result["data"])
+            uncached_results = await database.fetch_all(
+                f"""
+                    SELECT info_hash, tracker, data
+                    FROM uncache
+                    WHERE debridService = :debrid_service
+                    AND name = :name
+                    AND ((cast(:season as INTEGER) IS NULL AND season IS NULL) OR season = cast(:season as INTEGER))
+                    AND ((cast(:episode as INTEGER) IS NULL AND episode IS NULL) OR episode = cast(:episode as INTEGER))
+                    AND tracker = IN (SELECT cast(value as TEXT) FROM {'json_array_elements_text' if settings.DATABASE_TYPE == 'postgresql' else 'json_each'}(:indexers))
+                    AND timestamp + :cache_ttl >= :current_time
+                """,
+                {
+                    "debrid_service": debrid_service,
+                    "name": name,
+                    "season": season,
+                    "episode": episode,
+                    "indexers": indexers_json,
+                    "cache_ttl": cache_ttl,
+                    "current_time": the_time,
+                },
+            )
+            for result in uncached_results:
+                trackers_found.add(result["tracker"].lower())
+
+                hash = result["info_hash"]
+                if "searched" in hash:
+                    continue
+
+                uncached[hash] = orjson.loads(result["data"])
 
         if len(all_sorted_ranked_files) != 0 and set(indexers).issubset(trackers_found):
             debrid_extension = get_debrid_extension(
@@ -305,6 +334,24 @@ async def stream(
                         the_stream["sources"] = trackers
 
                     results.append(the_stream)
+        if len(uncached) != 0:
+            uncached_results = []
+            for hash in uncached:
+                dat = uncached[hash]
+                uncached_results.append(
+                    {
+                        "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
+                        "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
+                        "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
+                        "behaviorHints": {
+                            "filename": uncached[hash]["Title"],
+                            "bingeGroup": "comet|"+hash,
+                        },
+                    }
+                )
+            uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
+            uncached_results.sort(key=lambda x: '🇵🇹' not in x['description'].split(" 👤 ")[0].lower())
+            results.extend(uncached_results)
 
             logger.info(
                 f"{len(all_sorted_ranked_files)} cached results found for {log_name}"
@@ -544,7 +591,7 @@ async def stream(
 
         uncached = {}
         for hash in torrents_by_hash:
-            if hash not in files and 'torrentio' in torrents_by_hash[hash]["Tracker"]:
+            if hash not in files:
                 uncached[hash] = torrents_by_hash[hash]
 
         uncached_results = []
@@ -554,7 +601,7 @@ async def stream(
                 dat = uncached[hash]
                 dat = format_data(dat)
                 uncached_results.append({
-                    "name": f"[{debrid_extension}]⬇️ Comet {dat['quality']}",
+                    "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
                     "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
                     "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
                     "behaviorHints": {
