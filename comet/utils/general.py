@@ -926,6 +926,7 @@ async def add_torrent_to_cache(
         }
         for torrent in sorted_ranked_files
     ]
+    logger.warning(f"cached: {values}")
 
     query = f"""
         INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
@@ -959,7 +960,6 @@ async def add_uncached_to_cache(
             searched["data"]["seeders"] = searched["Seeds"]
             searched["data"]["tracker"] = indexer
             sorted_ranked_files[hash] = searched
-            logger.warning(f"uncached: {sorted_ranked_files[hash]}")
         except Exception as e:
             logger.error(f"Error processing indexer {indexer}: {str(e)}")
 
@@ -982,7 +982,7 @@ async def add_uncached_to_cache(
                 logger.error(f"Error processing torrent {torrent}: {str(e)}")
                 continue
 
-        logger.warning(f"Values to be inserted: {len(values)}")
+        logger.warning(f"Uncached: {values}")
     except Exception as e:
         logger.error(f"Error processing torrents: {str(e)}")
         return
