@@ -898,10 +898,12 @@ async def add_torrent_to_cache(
     if settings.ZILEAN_URL:
         indexers.append("dmm")
     for indexer in indexers:
-        
+        hash = f"searched-{indexer}-{name}-{season}-{episode}"
+
         searched = copy.deepcopy(
             sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
         )
+        searched["infohash"] = hash
         searched["data"]["tracker"] = indexer
 
         sorted_ranked_files[hash] = searched
@@ -943,14 +945,12 @@ async def add_uncached_to_cache(
     if settings.ZILEAN_URL:
         indexers.append("dmm")
     for indexer in indexers:
-        hash = f"searched-{indexer}-{name}-{season}-{episode}"
-
         searched = copy.deepcopy(
             sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
         )
         searched_data = format_data(searched)
         sorted_ranked_files[hash]["data"] = searched_data
-        sorted_ranked_files[hash]["infohash"] = hash
+        sorted_ranked_files[hash]["infohash"] = searched["InfoHash"]
         sorted_ranked_files[hash]["data"]["tracker"] = indexer
 
     try:
