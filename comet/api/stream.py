@@ -469,40 +469,44 @@ async def stream(
             return {"streams": []}
 
         if settings.TITLE_MATCH_CHECK:
-            aliases = await get_aliases(
-                session, "movies" if type == "movie" else "shows", id
-            )
-
-            indexed_torrents = [(i, torrents[i]["Title"]) for i in range(len(torrents))]
-            chunk_size = 50
-            chunks = [
-                indexed_torrents[i : i + chunk_size]
-                for i in range(0, len(indexed_torrents), chunk_size)
-            ]
-
-            remove_adult_content = (
-                settings.REMOVE_ADULT_CONTENT and config["removeTrash"]
-            )
-            tasks = []
-            for chunk in chunks:
-                tasks.append(
-                    filter(chunk, name, year, year_end, aliases, remove_adult_content, type, season)
+            try:
+                aliases = await get_aliases(
+                    session, "movies" if type == "movie" else "shows", id
                 )
 
-            filtered_torrents = await asyncio.gather(*tasks)
-            index_less = 0
-            for result in filtered_torrents:
-                for filtered in result:
-                    if not filtered[1]:
-                        del torrents[filtered[0] - index_less]
-                        index_less += 1
-                        continue
+                indexed_torrents = [(i, torrents[i]["Title"]) for i in range(len(torrents))]
+                chunk_size = 50
+                chunks = [
+                    indexed_torrents[i : i + chunk_size]
+                    for i in range(0, len(indexed_torrents), chunk_size)
+                ]
 
-            logger.info(
-                f"{len(torrents)} torrents passed title match check for {log_name}"
-            )
+                remove_adult_content = (
+                    settings.REMOVE_ADULT_CONTENT and config["removeTrash"]
+                )
+                tasks = []
+                for chunk in chunks:
+                    tasks.append(
+                        filter(chunk, name, year, year_end, aliases, remove_adult_content, type, season)
+                    )
 
-            if len(torrents) == 0:
+                filtered_torrents = await asyncio.gather(*tasks)
+                index_less = 0
+                for result in filtered_torrents:
+                    for filtered in result:
+                        if not filtered[1]:
+                            del torrents[filtered[0] - index_less]
+                            index_less += 1
+                            continue
+
+                logger.info(
+                    f"{len(torrents)} torrents passed title match check for {log_name}"
+                )
+
+                if len(torrents) == 0:
+                    return {"streams": []}
+            except Exception as e:
+                logger.error(f"Error during title match check: {e}")
                 return {"streams": []}
 
         tasks = []

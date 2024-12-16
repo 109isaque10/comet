@@ -23,7 +23,7 @@ def setupLogger(level: str):
                 "sink": sys.stderr,
                 "level": level,
                 "format": log_format,
-                "backtrace": False,
+                "backtrace": True,
                 "diagnose": False,
                 "enqueue": True,
             }
