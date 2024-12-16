@@ -576,6 +576,10 @@ async def filter(
         try:
             index = torrent[0]
             title = torrent[1]
+            tracker = torrent[2]
+            ltitle = title.lower()
+            if 'torrentio' in tracker.lower():
+                continue
 
             if "\n" in title:  # Torrentio title parsing
                 title = title.split("\n")[1]
@@ -602,16 +606,16 @@ async def filter(
                     results.append((index, False))
                     continue
 
-            if type == "series" and season and parsed.season:
-                if season != parsed.season:
+            if type == "series" and season is not None:
+                if str.format("s{:02d}", season) not in ltitle:
                     results.append((index, False))
                     continue
-                elif "Complet" in title:
+                elif "complet" in ltitle:
                     results.append((index, True))
                     continue
-                elif "S01-" in title:
-                    s = re.match(r"S01-\d{2}", title)
-                    s = re.match(r"S01-S\d{2}", title) if not s else s
+                elif "s01-" in ltitle:
+                    s = re.match(r"s01-\d{2}", ltitle)
+                    s = re.match(r"s01-s\d{2}", ltitle) if not s else s
                     if s and int(s.group(0).split("-")[1]) >= season:
                         results.append((index, True))
                         continue

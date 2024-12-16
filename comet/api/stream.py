@@ -474,7 +474,7 @@ async def stream(
                     session, "movies" if type == "movie" else "shows", id
                 )
 
-                indexed_torrents = [(i, torrents[i]["Title"]) for i in range(len(torrents))]
+                indexed_torrents = [(i, torrents[i]["Title"], torrents[i]["Tracker"]) for i in range(len(torrents))]
                 chunk_size = 50
                 chunks = [
                     indexed_torrents[i : i + chunk_size]
