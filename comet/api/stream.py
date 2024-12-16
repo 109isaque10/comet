@@ -236,6 +236,7 @@ async def stream(
         )  # we want to check that we have a cache for each of the user's trackers
         the_time = time.time()
         cache_ttl = settings.CACHE_TTL
+        uncached = {}
 
         for debrid_service in services:
             cached_results = await database.fetch_all(
@@ -334,29 +335,28 @@ async def stream(
                         the_stream["sources"] = trackers
 
                     results.append(the_stream)
-        if len(uncached) != 0:
-            uncached_results = []
-            for hash in uncached:
-                dat = uncached[hash]
-                uncached_results.append(
-                    {
-                        "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
-                        "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
-                        "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
-                        "behaviorHints": {
-                            "filename": uncached[hash]["Title"],
-                            "bingeGroup": "comet|"+hash,
-                        },
-                    }
+            if len(uncached) != 0:
+                uncached_results = []
+                for hash in uncached:
+                    dat = uncached[hash]
+                    uncached_results.append(
+                        {
+                            "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
+                            "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
+                            "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
+                            "behaviorHints": {
+                                "filename": uncached[hash]["Title"],
+                                "bingeGroup": "comet|"+hash,
+                            },
+                        }
+                    )
+                uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
+                uncached_results.sort(key=lambda x: '🇵🇹' not in x['description'].split(" 👤 ")[0].lower())
+                results.extend(uncached_results)
+
+                logger.info(
+                    f"{len(all_sorted_ranked_files)} cached results found for {log_name}"
                 )
-            uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
-            uncached_results.sort(key=lambda x: '🇵🇹' not in x['description'].split(" 👤 ")[0].lower())
-            results.extend(uncached_results)
-
-            logger.info(
-                f"{len(all_sorted_ranked_files)} cached results found for {log_name}"
-            )
-
             return {"streams": results}
 
         if config["debridApiKey"] == "":

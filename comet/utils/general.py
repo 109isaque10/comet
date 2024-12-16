@@ -965,7 +965,7 @@ async def add_uncached_to_cache(
                     "name": name,
                     "season": season,
                     "episode": episode,
-                    "tracker": sorted_ranked_files[torrent]["data"]["tracker"].lower(),
+                    "tracker": sorted_ranked_files[torrent]["data"]["tracker"].split("|")[0].lower(),
                     "data": orjson.dumps(sorted_ranked_files[torrent]).decode("utf-8"),
                     "timestamp": time.time(),
                 }
