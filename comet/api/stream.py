@@ -293,8 +293,6 @@ async def stream(
                 trackers_found.add(result["tracker"].lower())
 
                 hash = result["info_hash"]
-                if "searched" in hash:
-                    continue
 
                 uncached[hash] = orjson.loads(result["data"])
 
