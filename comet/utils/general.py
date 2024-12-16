@@ -899,16 +899,19 @@ async def add_torrent_to_cache(
         indexers.append("dmm")
     logger.warning(f"Indexers: {indexers}")
     for indexer in indexers:
-        hash = f"searched-{indexer}-{name}-{season}-{episode}"
+        try:
+            hash = f"searched-{indexer}-{name}-{season}-{episode}"
 
-        searched = copy.deepcopy(
+            searched = copy.deepcopy(
             sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
-        )
-        searched["infohash"] = hash
-        searched["data"]["tracker"] = indexer
-        searched["data"]["seeders"] = searched["Seeds"]
-        sorted_ranked_files[hash] = searched
-        logger.warning(f"cached: {searched}")
+            )
+            searched["infohash"] = hash
+            searched["data"]["tracker"] = indexer
+            searched["data"]["seeders"] = searched["Seeds"]
+            sorted_ranked_files[hash] = searched
+            logger.warning(f"cached: {searched}")
+        except Exception as e:
+            logger.error(f"Error processing indexer {indexer}: {str(e)}")
 
     values = [
         {
@@ -948,15 +951,18 @@ async def add_uncached_to_cache(
         indexers.append("dmm")
     logger.warning(f"Indexers: {indexers}")
     for indexer in indexers:
-        hash = f"searched-{indexer}-{name}-{season}-{episode}"
-        searched = copy.deepcopy(
+        try:
+            hash = f"searched-{indexer}-{name}-{season}-{episode}"
+            searched = copy.deepcopy(
             sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
-        )
-        searched_data = format_data(searched)
-        sorted_ranked_files[hash]["data"] = searched_data
-        sorted_ranked_files[hash]["infohash"] = hash
-        sorted_ranked_files[hash]["data"]["tracker"] = indexer
-        logger.warning(f"uncached: {sorted_ranked_files[hash]}")
+            )
+            searched_data = format_data(searched)
+            sorted_ranked_files[hash]["data"] = searched_data
+            sorted_ranked_files[hash]["infohash"] = hash
+            sorted_ranked_files[hash]["data"]["tracker"] = indexer
+            logger.warning(f"uncached: {sorted_ranked_files[hash]}")
+        except Exception as e:
+            logger.error(f"Error processing indexer {indexer}: {str(e)}")
 
     try:
         values = []
