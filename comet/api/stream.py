@@ -338,14 +338,14 @@ async def stream(
             if len(uncached) != 0:
                 uncached_results = []
                 for hash in uncached:
-                    dat = uncached[hash]
+                    data = uncached[hash]["data"]
                     uncached_results.append(
                         {
-                            "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
-                            "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
+                            "name": f"[{debrid_extension}⬇️] Comet {data['quality']}",
+                            "description": format_title(data, config)+" 👤 "+str(data["Seeds"]),
                             "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
                             "behaviorHints": {
-                                "filename": uncached[hash]["Title"],
+                                "filename": data["title"],
                                 "bingeGroup": "comet|"+hash,
                             },
                         }

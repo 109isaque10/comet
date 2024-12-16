@@ -905,6 +905,7 @@ async def add_torrent_to_cache(
         )
         searched["infohash"] = hash
         searched["data"]["tracker"] = indexer
+        searched["data"]["seeders"] = searched["Seeds"]
         sorted_ranked_files[hash] = searched
         logger.warning(f"cached: {searched}")
 
