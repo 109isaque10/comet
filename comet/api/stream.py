@@ -544,7 +544,7 @@ async def stream(
 
         uncached = {}
         for hash in torrents_by_hash:
-            if hash not in files:
+            if hash not in files and 'torrentio' in torrents_by_hash[hash]["Tracker"]:
                 uncached[hash] = torrents_by_hash[hash]
 
         uncached_results = []
