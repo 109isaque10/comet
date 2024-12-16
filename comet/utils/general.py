@@ -573,49 +573,56 @@ async def filter(
 ):
     results = []
     for torrent in torrents:
-        index = torrent[0]
-        title = torrent[1]
+        try:
+            index = torrent[0]
+            title = torrent[1]
 
-        if "\n" in title:  # Torrentio title parsing
-            title = title.split("\n")[1]
+            if "\n" in title:  # Torrentio title parsing
+                title = title.split("\n")[1]
 
-        parsed = parse(title)
+            parsed = parse(title)
 
-        if remove_adult_content and parsed.adult:
-            results.append((index, False))
-            continue
+            if remove_adult_content and parsed.adult:
+                results.append((index, False))
+                continue
 
-        if parsed.parsed_title and not title_match(
+            if parsed.parsed_title and not title_match(
             name, parsed.parsed_title, aliases=aliases
-        ):
-            results.append((index, False))
-            continue
+            ):
+                results.append((index, False))
+                continue
 
-        if year and parsed.year:
-            if year_end is not None:
-                if not (year <= parsed.year <= year_end):
-                    results.append((index, False))
-                    continue
+            if year and parsed.year:
+                if year_end is not None:
+                    if not (year <= parsed.year <= year_end):
+                        results.append((index, False))
+                        continue
             else:
                 if year < (parsed.year - 1) or year > (parsed.year + 1):
                     results.append((index, False))
                     continue
 
-        if type == "series" and season and parsed.season:
-            if season != parsed.season:
-                results.append((index, False))
-                continue
-            elif "Complet" in title:
-                results.append((index, True))
-                continue
-            elif "S01-" in title:
-                s = re.match(r"S01-\d{2}", title)
-                s = re.match(r"S01-S\d{2}", title) if not s else s
-                if s and int(s.group(0).split("-")[1]) >= season:
+            if type == "series" and season and parsed.season:
+                if season != parsed.season:
+                    results.append((index, False))
+                    continue
+                elif "Complet" in title:
                     results.append((index, True))
                     continue
+                elif "S01-" in title:
+                    s = re.match(r"S01-\d{2}", title)
+                    s = re.match(r"S01-S\d{2}", title) if not s else s
+                    if s and int(s.group(0).split("-")[1]) >= season:
+                        results.append((index, True))
+                        continue
 
-        results.append((index, True))
+            results.append((index, True))
+        except re.error as e:
+            logger.error(f"Regex error while filtering torrent {title}: {e}")
+            results.append((index, False))
+        except Exception as e:
+            logger.error(f"Unexpected error while filtering torrent {title}: {e}")
+            results.append((index, False))
 
     return results
 
