@@ -907,7 +907,6 @@ async def add_torrent_to_cache(
             searched["infohash"] = hash
             searched["data"]["tracker"] = indexer
             sorted_ranked_files[hash] = searched
-            logger.warning(f"cached: {searched}")
         except Exception as e:
             logger.error(f"Error processing indexer {indexer}: {str(e)}")
 
@@ -969,7 +968,7 @@ async def add_uncached_to_cache(
             try:
                 value = {
                     "debridService": config["debridService"],
-                    "info_hash": sorted_ranked_files[torrent]["infohash"],
+                    "info_hash": sorted_ranked_files[torrent]["InfoHash"],
                     "name": name,
                     "season": season,
                     "episode": episode,
@@ -982,7 +981,6 @@ async def add_uncached_to_cache(
                 logger.error(f"Error processing torrent {torrent}: {str(e)}")
                 continue
 
-        logger.warning(f"Uncached: {values}")
     except Exception as e:
         logger.error(f"Error processing torrents: {str(e)}")
         return
