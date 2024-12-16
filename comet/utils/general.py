@@ -907,7 +907,6 @@ async def add_torrent_to_cache(
             )
             searched["infohash"] = hash
             searched["data"]["tracker"] = indexer
-            searched["data"]["seeders"] = searched["Seeds"]
             sorted_ranked_files[hash] = searched
             logger.warning(f"cached: {searched}")
         except Exception as e:
@@ -957,9 +956,11 @@ async def add_uncached_to_cache(
             sorted_ranked_files[list(sorted_ranked_files.keys())[0]]
             )
             searched_data = format_data(searched)
-            sorted_ranked_files[hash]["data"] = searched_data
-            sorted_ranked_files[hash]["infohash"] = hash
-            sorted_ranked_files[hash]["data"]["tracker"] = indexer
+            searched[hash]["data"] = searched_data
+            searched[hash]["infohash"] = hash
+            searched["data"]["seeders"] = searched["Seeds"]
+            searched[hash]["data"]["tracker"] = indexer
+            sorted_ranked_files[hash] = searched[hash]
             logger.warning(f"uncached: {sorted_ranked_files[hash]}")
         except Exception as e:
             logger.error(f"Error processing indexer {indexer}: {str(e)}")
