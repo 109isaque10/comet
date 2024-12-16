@@ -897,6 +897,7 @@ async def add_torrent_to_cache(
         indexers.append("mediafusion")
     if settings.ZILEAN_URL:
         indexers.append("dmm")
+    logger.warning(f"Indexers: {indexers}")
     for indexer in indexers:
         hash = f"searched-{indexer}-{name}-{season}-{episode}"
 
@@ -945,6 +946,7 @@ async def add_uncached_to_cache(
         indexers.append("mediafusion")
     if settings.ZILEAN_URL:
         indexers.append("dmm")
+    logger.warning(f"Indexers: {indexers}")
     for indexer in indexers:
         hash = f"searched-{indexer}-{name}-{season}-{episode}"
         searched = copy.deepcopy(
