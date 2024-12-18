@@ -582,6 +582,7 @@ async def filter(
     season: int = None,
 ):
     results = []
+    series = type == "series"
     for torrent in torrents:
         try:
             index = torrent[0]
@@ -601,33 +602,30 @@ async def filter(
                 results.append((index, False))
                 continue
 
-            ptitle = str(parsed.parsed_title)
-            if ptitle and 'complet' in ptitle.lower():
-                ptitle = ptitle.split(' - ')[0]
-            if ptitle and not title_match(
-            name, ptitle, aliases=aliases
-            ):
-                results.append((index, False))
-                continue
+            ptitle = parsed.parsed_title
+            if ptitle:
+                ptitle = str(ptitle).split(' - ')[0] if 'complet' in ptitle.lower() else ptitle
+                if not title_match(name, ptitle, aliases=aliases):
+                    results.append((index, False))
+                    continue
 
             if year and parsed.year:
                 if year_end is not None:
                     if not (year <= parsed.year <= year_end):
-                        results.append((index, False))
+                        results.append(index, False)
                         continue
-            else:
-                if year < (parsed.year - 1) or year > (parsed.year + 1):
-                    results.append((index, False))
+                elif not (year - 1 <= parsed.year <= year + 1):
+                    results.append(index, False)
                     continue
 
-            if type == "series" and season is not None:
+            if series and season is not None:
                 com = 'complet' in ltitle
                 if "s01-" in ltitle:
                     s = re.findall(r"s01-s?(\d{2})", ltitle)[0]
                     if s and int(s) < season:
                         results.append((index, False ))
                         continue
-                elif str.format("s{:02d}", season) not in ltitle and not com:
+                elif str.format("s{:02d}", season) not in ltitle:
                     results.append((index, False))
                     continue
                 elif com:
