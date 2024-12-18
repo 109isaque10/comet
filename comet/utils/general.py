@@ -604,6 +604,7 @@ async def filter(
             if parsed.parsed_title and not title_match(
             name, parsed.parsed_title, aliases=aliases
             ):
+                logger.warning('false title - '+ltitle+' with '+parsed.parsed_title)
                 results.append((index, False))
                 continue
 
@@ -625,9 +626,11 @@ async def filter(
                         results.append((index, False ))
                         continue
                 elif not str.format("s{:02d}", season) and com:
+                    logger.warning('false season - '+ltitle)
                     results.append((index, False))
                     continue
                 elif com:
+                    logger.warning('false complete - '+ltitle)
                     results.append((index, False))
                     continue
 
@@ -639,7 +642,6 @@ async def filter(
             logger.error(f"Unexpected error while filtering torrent {title}: {e}")
             results.append((index, False))
 
-    logger.warning(results)
     return results
 
 
