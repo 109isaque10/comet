@@ -656,7 +656,7 @@
                     };
 
                     let defaultLanguages = [];
-                    let defaultSortLanguage = '🇬🇧'
+                    let defaultSortLanguage = 'English'
                     let defaultResolutions = [];
                     let defaultResultFormat = [];
 
@@ -679,7 +679,7 @@
                         populateSelect("resultFormat", webConfig.resultFormat);
                         document.body.classList.add("ready");
                         defaultLanguages = webConfig.languages;
-                        defaultSortLanguage = webConfig.sortlanguage;
+                        defaultSortLanguage = webConfig.languages;
                         defaultResolutions = webConfig.resolutions;
                         defaultResultFormat = webConfig.resultFormat;
 
@@ -707,7 +707,6 @@
                                 // For languages, prepend the flag emoji if it exists
                                 const flag = languagesEmojis[option] || '';
                                 optionElement.textContent = `${flag} ${option}`;
-                                optionElement.value = flag;
                             } else {
                                 // For other selects, just use the option text as is
                                 optionElement.textContent = option;
