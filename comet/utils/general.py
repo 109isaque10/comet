@@ -612,10 +612,10 @@ async def filter(
             if year and parsed.year:
                 if year_end is not None:
                     if not (year <= parsed.year <= year_end):
-                        results.append(index, False)
+                        results.append((index, False))
                         continue
                 elif not (year - 1 <= parsed.year <= year + 1):
-                    results.append(index, False)
+                    results.append((index, False))
                     continue
 
             if series and season is not None:
