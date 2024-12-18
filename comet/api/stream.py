@@ -614,7 +614,7 @@ async def stream(
                     },
                 })
             uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
-            uncached_results.sort(key=lambda x: '🇵🇹' not in x['description'].split(" 👤 ")[0].lower())
+            uncached_results.sort(key=lambda x: config["sortlanguage"] not in x['description'].split(" 👤 ")[0].lower())
 
         sorted_ranked_files = sort_torrents(ranked_files)
 
@@ -670,11 +670,11 @@ async def stream(
                     "url": "https://comet.fast",
                 }
             )
-
+        preResults = []
         for resolution in balanced_hashes:
             for hash in balanced_hashes[resolution]:
                 data = sorted_ranked_files[hash]["data"]
-                results.append(
+                preResults.append(
                     {
                         "name": f"[{debrid_extension}⚡] Comet {data['resolution']}",
                         "description": format_title(data, config),
@@ -687,6 +687,8 @@ async def stream(
                         },
                     }
                 )
+        preResults.sort(key=lambda x: config["sortlanguage"] not in x['description'].split("\n")[-1].lower())
+        results.extend(preResults)
         results.extend(uncached_results)
 
         return {"streams": results}

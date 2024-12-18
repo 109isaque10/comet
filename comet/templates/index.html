@@ -520,7 +520,7 @@
             </div>
 
             <div class="form-item">
-                <sl-select id="sortlanguage" multiple clearable label="Sort Language" placeholder="Select language"></sl-select>
+                <sl-select id="sortlanguage" label="Sort Language" placeholder="Select language"></sl-select>
             </div>
 
             <div class="form-item">
@@ -674,7 +674,7 @@
                         const webConfig = {{webConfig|tojson}};
                         populateSelect("indexers", webConfig.indexers);
                         populateSelect("languages", webConfig.languages);
-                        populateSelect("sortlanguage", webConfig.sortlanguage)
+                        populateSelect("sortlanguage", webConfig.languages)
                         populateSelect("resolutions", webConfig.resolutions);
                         populateSelect("resultFormat", webConfig.resultFormat);
                         document.body.classList.add("ready");
@@ -707,6 +707,7 @@
                                 // For languages, prepend the flag emoji if it exists
                                 const flag = languagesEmojis[option] || '';
                                 optionElement.textContent = `${flag} ${option}`;
+                                optionElement.value = flag;
                             } else {
                                 // For other selects, just use the option text as is
                                 optionElement.textContent = option;
