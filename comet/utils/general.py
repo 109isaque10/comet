@@ -590,31 +590,32 @@ async def filter(
             tracker = torrent[2]
             ltitle = title.lower()
             if 'torrentio' in tracker.lower():
-                results.append((index, False))
+                results.append((index, True))
                 continue
 
             if "\n" in title:  # Torrentio title parsing
                 title = title.split("\n")[1]
 
-            parsed = parse(title)
+            #parsed = parse(title)
 
-            if remove_adult_content and parsed.adult:
-                results.append((index, False))
-                continue
+            #if remove_adult_content and parsed.adult:
+               # results.append((index, False))
+                #continue
 
-            ptitle = parsed.parsed_title
+            ptitle = title.split(' - ')[0]
             if ptitle:
-                ptitle = str(ptitle).split(' - ')[0] if 'complet' in ptitle.lower() else ptitle
+                #ptitle = str(ptitle).split(' - ')[0] if 'complet' in ptitle.lower() else ptitle
                 if not title_match(name, ptitle, aliases=aliases):
                     results.append((index, False))
                     continue
 
-            if year and parsed.year:
+            pyear = re.findall(r'\d{4}\W', title)[0]
+            if year and pyear:
                 if year_end is not None:
-                    if not (year <= parsed.year <= year_end):
+                    if not (year <= pyear <= year_end):
                         results.append((index, False))
                         continue
-                elif not (year - 1 <= parsed.year <= year + 1):
+                elif not (year - 1 <= pyear <= year + 1):
                     results.append((index, False))
                     continue
 
