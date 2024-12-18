@@ -639,6 +639,7 @@ async def filter(
             logger.error(f"Unexpected error while filtering torrent {title}: {e}")
             results.append((index, False))
 
+    logger.warning(results)
     return results
 
 

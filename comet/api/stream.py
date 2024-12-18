@@ -34,6 +34,7 @@ from comet.utils.general import (
     add_torrent_to_cache,
     format_data,
     add_uncached_to_cache,
+    get_language_emoji,
 )
 from comet.utils.logger import logger
 from comet.utils.models import database, rtn, settings, trackers
