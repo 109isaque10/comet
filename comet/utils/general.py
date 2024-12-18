@@ -625,7 +625,7 @@ async def filter(
                     if s and int(s) < season:
                         results.append((index, False ))
                         continue
-                elif str.format("s{:02d}", season) not in ltitle:
+                elif str.format("s{:02d}", season) not in ltitle and not com:
                     results.append((index, False))
                     continue
                 elif com:
