@@ -310,6 +310,16 @@ async def get_indexer_manager(
             all_results = await asyncio.gather(*tasks)
 
             for result_set in all_results:
+                for result in result_set:
+                    result['Seeds'] = result['Seeders']
+                    if 'legendado' in result["Title"].lower():
+                        result["Languages"] = ['en']
+                    elif 'dual' in result["Title"].lower():
+                        result["Languages"] = ['en', 'pt']
+                    elif 'nacional' in result["Title"].lower():
+                        result["Languages"] = ['pt']
+                    elif 'dublado' in result["Title"].lower():
+                        result["Languages"] = ['pt']
                 results.extend(result_set)
 
         elif indexer_manager_type == "prowlarr":
@@ -579,6 +589,7 @@ async def filter(
             tracker = torrent[2]
             ltitle = title.lower()
             if 'torrentio' in tracker.lower():
+                results.append((index, False))
                 continue
 
             if "\n" in title:  # Torrentio title parsing
@@ -607,18 +618,18 @@ async def filter(
                     continue
 
             if type == "series" and season is not None:
-                if str.format("s{:02d}", season) not in ltitle:
+                com = 'complet' not in ltitle
+                if "s01-" in ltitle:
+                    s = re.findall(r"s01-s?(\d{2})", ltitle)[0]
+                    if s and int(s) < season:
+                        results.append((index, False ))
+                        continue
+                elif not str.format("s{:02d}", season) and com:
                     results.append((index, False))
                     continue
-                elif "complet" in ltitle:
-                    results.append((index, True))
+                elif com:
+                    results.append((index, False))
                     continue
-                elif "s01-" in ltitle:
-                    s = re.match(r"s01-\d{2}", ltitle)
-                    s = re.match(r"s01-s\d{2}", ltitle) if not s else s
-                    if s and int(s.group(0).split("-")[1]) >= season:
-                        results.append((index, True))
-                        continue
 
             results.append((index, True))
         except re.error as e:
