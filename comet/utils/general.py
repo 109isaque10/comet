@@ -601,10 +601,12 @@ async def filter(
                 results.append((index, False))
                 continue
 
-            if parsed.parsed_title and not title_match(
-            name, parsed.parsed_title, aliases=aliases
+            ptitle = str(parsed.parsed_title)
+            if ptitle and 'complet' in ptitle.lower():
+                ptitle = ptitle.split(' - ')[0]
+            if ptitle and not title_match(
+            name, ptitle, aliases=aliases
             ):
-                logger.warning('false title - '+ltitle+' with '+parsed.parsed_title)
                 results.append((index, False))
                 continue
 
@@ -619,19 +621,17 @@ async def filter(
                     continue
 
             if type == "series" and season is not None:
-                com = 'complet' not in ltitle
+                com = 'complet' in ltitle
                 if "s01-" in ltitle:
                     s = re.findall(r"s01-s?(\d{2})", ltitle)[0]
                     if s and int(s) < season:
                         results.append((index, False ))
                         continue
-                elif not str.format("s{:02d}", season) and com:
-                    logger.warning('false season - '+ltitle)
+                elif not str.format("s{:02d}", season) and not com:
                     results.append((index, False))
                     continue
                 elif com:
-                    logger.warning('false complete - '+ltitle)
-                    results.append((index, False))
+                    results.append((index, True))
                     continue
 
             results.append((index, True))
