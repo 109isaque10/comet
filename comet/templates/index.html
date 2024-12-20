@@ -520,7 +520,7 @@
             </div>
 
             <div class="form-item">
-                <sl-select id="sortlanguage" label="Sort Language" placeholder="Select language"></sl-select>
+                <sl-select id="sortLanguage" label="Sort Language" placeholder="Select language"></sl-select>
             </div>
 
             <div class="form-item">
@@ -674,7 +674,7 @@
                         const webConfig = {{webConfig|tojson}};
                         populateSelect("indexers", webConfig.indexers);
                         populateSelect("languages", webConfig.languages);
-                        populateSelect("sortlanguage", webConfig.languages)
+                        populateSelect("sortLanguage", webConfig.languages)
                         populateSelect("resolutions", webConfig.resolutions);
                         populateSelect("resultFormat", webConfig.resultFormat);
                         document.body.classList.add("ready");
@@ -703,7 +703,7 @@
                                 // For languages, prepend the flag emoji if it exists
                                 const flag = languagesEmojis[option] || '';
                                 optionElement.textContent = `${flag} ${option}`;
-                            } else if (selectId === "sortlanguage") {
+                            } else if (selectId === "sortLanguage") {
                                 // For languages, prepend the flag emoji if it exists
                                 const flag = languagesEmojis[option] || '';
                                 optionElement.textContent = `${flag} ${option}`;
@@ -727,7 +727,7 @@
                     function getSettings() {
                         const indexers = Array.from(document.getElementById("indexers").selectedOptions).map(option => option.value);
                         const languages = Array.from(document.getElementById("languages").selectedOptions).map(option => option.value);
-                        const sortlanguage = document.getElementById("sortlanguage").value;
+                        const sortLanguage = document.getElementById("sortLanguage").value;
                         const resolutions = Array.from(document.getElementById("resolutions").selectedOptions).map(option => option.value);
                         const maxResults = document.getElementById("maxResults").value;
                         const maxResultsPerResolution = document.getElementById("maxResultsPerResolution").value;
@@ -752,7 +752,7 @@
                             resultFormat: selectedResultFormat,
                             resolutions: selectedResolutions,
                             languages: selectedLanguages,
-                            sortlanguage: sortlanguage,
+                            sortLanguage: sortLanguage,
                             debridService: debridService,
                             debridApiKey: debridApiKey,
                             debridStreamProxyPassword: debridStreamProxyPassword,
@@ -820,8 +820,8 @@
                             document.getElementById("indexers").value = settings.indexers;
                         if (settings.languages !== null && settings.languages != "All")
                             document.getElementById("languages").value = settings.languages;
-                        if (settings.sortlanguage !== null) 
-                            document.getElementById("languages").value = settings.sortlanguage;
+                        if (settings.sortLanguage !== null) 
+                            document.getElementById("languages").value = settings.sortLanguage;
                         if (settings.resolutions !== null && settings.resolutions != "All")
                             document.getElementById("resolutions").value = settings.resolutions;
                         if (settings.resultFormat !== null && settings.resultFormat != "All")

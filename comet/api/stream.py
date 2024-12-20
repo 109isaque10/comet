@@ -600,9 +600,8 @@ async def stream(
                 uncached[hash] = torrents_by_hash[hash]
 
         uncached_results = []
-        sortlanguage = get_language_emoji(config["sortlanguage"])
-        logger.warning('sortLanguage emoji: '+sortlanguage)
-        logger.warning('sortLanguage config: '+config["sortlanguage"])
+        sortLanguageCode = (code for code, name in settings.LANGUAGES.items() if name.lower() == config["sortLanguage"].lower())
+        sortLanguage = get_language_emoji(sortLanguageCode)
         if len(uncached) != 0:
             f = 1
             for hash in uncached:
@@ -618,9 +617,9 @@ async def stream(
                     },
                 })
             #uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
-            #uncached_results.sort(key=lambda x: sortlanguage not in x['description'].split(" 👤 ")[0].lower())
+            #uncached_results.sort(key=lambda x: sortLanguage not in x['description'].split(" 👤 ")[0].lower())
             uncached_results.sort(key=lambda x: (
-                sortlanguage not in x['description'].split(" 👤 ")[0].lower(),  # Sort by language presence (Portuguese first)
+                sortLanguage not in x['description'].split(" 👤 ")[0].lower(),  # Sort by language presence (Portuguese first)
                 -int(x['description'].split(" 👤 ")[1])  # Sort by seeds in descending order
             ))
 
@@ -695,7 +694,7 @@ async def stream(
                         },
                     }
                 )
-        preResults.sort(key=lambda x: sortlanguage not in x['description'].split("\n")[-1].lower())
+        preResults.sort(key=lambda x: sortLanguage not in x['description'].split("\n")[-1].lower())
         results.extend(preResults)
         results.extend(uncached_results)
 
