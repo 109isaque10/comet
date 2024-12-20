@@ -227,8 +227,6 @@ async def stream(
             indexers.append("mediafusion")
         if settings.ZILEAN_URL:
             indexers.append("dmm")
-        if settings.DDL:
-            indexers.append("ddl")
         indexers_json = orjson.dumps(indexers).decode("utf-8")
 
         all_sorted_ranked_files = {}
@@ -239,67 +237,60 @@ async def stream(
         cache_ttl = settings.CACHE_TTL
         uncached = {}
 
+        # Build base query params
+        base_params = {
+            "name": name,
+            "season": season,
+            "episode": episode,
+            "indexers": indexers_json,
+            "cache_ttl": cache_ttl,
+            "current_time": the_time,
+        }
+
+        # Query for each debrid service
         for debrid_service in services:
-            cached_results = await database.fetch_all(
-                f"""
-                    SELECT info_hash, tracker, data
-                    FROM cache
-                    WHERE debridService = :debrid_service
-                    AND name = :name
-                    AND ((cast(:season as INTEGER) IS NULL AND season IS NULL) OR season = cast(:season as INTEGER))
-                    AND ((cast(:episode as INTEGER) IS NULL AND episode IS NULL) OR episode = cast(:episode as INTEGER))
-                    AND tracker IN (SELECT cast(value as TEXT) FROM {'json_array_elements_text' if settings.DATABASE_TYPE == 'postgresql' else 'json_each'}(:indexers))
-                    AND timestamp + :cache_ttl >= :current_time
-                """,
-                {
-                    "debrid_service": debrid_service,
-                    "name": name,
-                    "season": season,
-                    "episode": episode,
-                    "indexers": indexers_json,
-                    "cache_ttl": cache_ttl,
-                    "current_time": the_time,
-                },
-            )
+            # Query cached results
+            params = {**base_params, "debrid_service": debrid_service}
+            cached_query = f"""
+                SELECT info_hash, tracker, data
+                FROM cache 
+                WHERE debridService = :debrid_service
+                AND name = :name
+                AND ((cast(:season as INTEGER) IS NULL AND season IS NULL) OR season = cast(:season as INTEGER))
+                AND ((cast(:episode as INTEGER) IS NULL AND episode IS NULL) OR episode = cast(:episode as INTEGER))
+                AND tracker IN (SELECT cast(value as TEXT) FROM {'json_array_elements_text' if settings.DATABASE_TYPE == 'postgresql' else 'json_each'}(:indexers))
+                AND timestamp + :cache_ttl >= :current_time
+            """
+            cached_results = await database.fetch_all(cached_query, params)
+
+            # Process cached results
             for result in cached_results:
                 trackers_found.add(result["tracker"].lower())
-
                 hash = result["info_hash"]
-                if "searched" in hash:
-                    continue
-                logger.warning(hash)
-                all_sorted_ranked_files[hash] = orjson.loads(result["data"])
-            uncached_results = await database.fetch_all(
-                f"""
-                    SELECT info_hash, tracker, data
-                    FROM uncache
-                    WHERE debridService = :debrid_service
-                    AND name = :name
-                    AND ((cast(:season as INTEGER) IS NULL AND season IS NULL) OR season = cast(:season as INTEGER))
-                    AND ((cast(:episode as INTEGER) IS NULL AND episode IS NULL) OR episode = cast(:episode as INTEGER))
-                    AND tracker IN (SELECT cast(value as TEXT) FROM {'json_array_elements_text' if settings.DATABASE_TYPE == 'postgresql' else 'json_each'}(:indexers))
-                    AND timestamp + :cache_ttl >= :current_time
-                """,
-                {
-                    "debrid_service": debrid_service,
-                    "name": name,
-                    "season": season,
-                    "episode": episode,
-                    "indexers": indexers_json,
-                    "cache_ttl": cache_ttl,
-                    "current_time": the_time,
-                },
-            )
+                if "searched" not in hash:
+                    all_sorted_ranked_files[hash] = orjson.loads(result["data"])
+
+            # Query uncached results
+            uncached_query = cached_query.replace("FROM cache", "FROM uncache")
+            uncached_results = await database.fetch_all(uncached_query, params)
+
+            # Process uncached results
             for result in uncached_results:
                 trackers_found.add(result["tracker"].lower())
-
                 hash = result["info_hash"]
-                if "searched" in hash:
-                    continue
-                logger.warning(hash)
-                uncached[hash] = orjson.loads(result["data"])
+                if "searched" not in hash:
+                    uncached[hash] = orjson.loads(result["data"])
 
-        if len(all_sorted_ranked_files) != 0 and set(indexers).issubset(trackers_found):
+        # Check if we have all required trackers cached
+        have_complete_cache = len(all_sorted_ranked_files) != 0 and set(indexers).issubset(trackers_found)
+        
+        if have_complete_cache:
+            # Process cached results
+            debrid_extension = get_debrid_extension(debrid_service, config["debridApiKey"])
+            balanced_hashes = get_balanced_hashes(all_sorted_ranked_files, config)
+            
+            # Generate streams from cached results
+            results = []
             debrid_extension = get_debrid_extension(
                 debrid_service, config["debridApiKey"]
             )
@@ -351,8 +342,9 @@ async def stream(
                             },
                         }
                     )
-                uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
-                uncached_results.sort(key=lambda x: '🇵🇹' not in x['description'].split(" 👤 ")[0].lower())
+                uncached_results.sort(key=lambda x: (
+                    sortLanguage not in x['description'].split(" 👤 ")[0].lower(),  # Sort by language presence (Portuguese first)
+                    -int(x['description'].split(" 👤 ")[1])))
                 results.extend(uncached_results)
 
                 logger.info(
@@ -653,14 +645,14 @@ async def stream(
             if "Languages" in torrents_by_hash[hash]:
                 sorted_ranked_files[hash]["data"]["languages"] = torrents_by_hash[hash]["Languages"]
 
-        #background_tasks.add_task(
-        #    add_torrent_to_cache, config, name, season, episode, sorted_ranked_files
-        #)
-       # background_tasks.add_task(
-       #     add_uncached_to_cache, config, name, season, episode, uncached
-        #)
+        background_tasks.add_task(
+            add_torrent_to_cache, config, name, season, episode, sorted_ranked_files
+        )
+        background_tasks.add_task(
+            add_uncached_to_cache, config, name, season, episode, uncached
+        )
 
-        #logger.info(f"Results have been cached for {log_name}")
+        logger.info(f"Results have been cached for {log_name}")
 
         balanced_hashes = get_balanced_hashes(sorted_ranked_files, config)
         
