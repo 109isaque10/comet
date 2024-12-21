@@ -604,10 +604,10 @@ async def filter(
 filter_cache = {}
 async def process_torrent(title: str, name: str, year: int, year_end: int, aliases: dict, series: bool, season: int) -> bool:
     cache_key = f"filter:{title}:{name}:{year}:{year_end}:{aliases}:{series}:{season}"
+    filter_bool = False
     try:
         if cache_key in filter_cache:
             return filter_cache[cache_key]
-        filter_bool = False
         if "\n" in title:
             title = title.split("\n")[1]
 
