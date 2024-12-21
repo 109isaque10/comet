@@ -594,18 +594,28 @@ async def filter(
     results = []
     series = type == "series"
 
-    # Use list comprehension for simple cases
-    results = [
-        (index, True) if 'torrentio' in tracker.lower()
-        else (index, await process_torrent(title, name, year, year_end, aliases, series, season, episode))
-        for index, title, tracker in torrents
-    ]
-
+    for index, title, tracker in torrents:
+        if 'torrentio' in tracker.lower():
+            results.append((index, True))
+        else:
+            result = await process_torrent(title, name, year, year_end, aliases, series, season, episode)
+            if str.format("s{:02d}e{:02d}", season, episode) in result[1]:
+                if result[0]:
+                    results.append((index, True))
+            elif e_pattern.findall(result[1]):
+                # For patterns like s01e03-e05
+                e_match = e_pattern.findall(result[1])
+                if e_match:
+                    start_ep, end_ep = map(int, e_match[0])
+                    if not (start_ep <= episode <= end_ep):
+                        results.append((index, False))
+            else:
+                results.append((index, result[0]))
     return results
 
 filter_cache = {}
-async def process_torrent(title: str, name: str, year: int, year_end: int, aliases: dict, series: bool, season: int, episode: int) -> bool:
-    cache_key = f"filter:{title}:{name}:{year}:{year_end}:{aliases}:{series}:{season}"
+async def process_torrent(title: str, name: str, year: int, year_end: int, aliases: dict, series: bool, season: int) -> list:
+    cache_key = f"filter:{title}:{name}:{year}:{year_end}:{series}:{season}"
     filter_bool = False
     try:
         if cache_key in filter_cache:
@@ -615,40 +625,33 @@ async def process_torrent(title: str, name: str, year: int, year_end: int, alias
 
         ptitle = title.split(' - ')[0]
         if not ptitle or not title_match(name, ptitle, aliases=aliases):
-            return filter_bool
+            return [filter_bool, title]
         
         pyear_match = year_pattern.findall(title)
         if year and pyear_match:
             pyear = int(pyear_match[0])
             if year_end is not None and not (year <= pyear <= year_end):
-                return filter_bool
+                return [filter_bool, title]
             if year_end is None and not (year - 1 <= pyear <= year + 1):
-                return filter_bool
+                return [filter_bool, title]
 
         if series and season is not None:
             ltitle = title.lower()
             if "s01-" in ltitle:
                 s_match = s_pattern.findall(ltitle)
                 if s_match and not int(s_match[0]) <= season:
-                    return filter_bool
-            elif e_pattern.findall(ltitle):
-                # For patterns like s01e03-e05
-                e_match = e_pattern.findall(ltitle)
-                if e_match:
-                    start_ep, end_ep = map(int, e_match[0])
-                    if not (start_ep <= episode <= end_ep):
-                        return filter_bool
-            elif not any((str.format("s{:02d}", season) in ltitle, 'complet' in ltitle, str.format("s{:02d}e{:02d}", season, episode) in ltitle)):
-                return filter_bool
+                    return [filter_bool, title]
+            elif not any((str.format("s{:02d}", season) in ltitle, 'complet' in ltitle)):
+                return [filter_bool, title]
 
         filter_bool = True
-        return filter_bool
+        return [filter_bool, title]
     except Exception as e:
         logger.error(f"Error processing torrent {title}: {e}")
         return False
     finally:
         if cache_key not in filter_cache:
-            filter_cache[cache_key] = filter_bool
+            filter_cache[cache_key] = [filter_bool, title]
 
 # Initialize cache
 hash_cache = {}
