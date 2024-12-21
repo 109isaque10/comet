@@ -589,6 +589,7 @@ async def filter(
     aliases: dict,
     type: str,
     season: int = None,
+    episode: int = None,
 ):
     results = []
     series = type == "series"
@@ -596,7 +597,7 @@ async def filter(
     # Use list comprehension for simple cases
     results = [
         (index, True) if 'torrentio' in tracker.lower()
-        else (index, await process_torrent(title, name, year, year_end, aliases, series, season))
+        else (index, await process_torrent(title, name, year, year_end, aliases, series, season, episode))
         for index, title, tracker in torrents
     ]
 
