@@ -49,10 +49,13 @@ class TorBox:
             for i in range(0, len(torrent_hashes), chunk_size)
         ]
 
-        tasks = []
-        for chunk in chunks:
-            tasks.append(self.get_instant(chunk))
+        semaphore = asyncio.Semaphore(30)  # Limit concurrent requests
 
+        async def fetch(chunk):
+            async with semaphore:
+                return await self.get_instant(chunk)
+
+        tasks = [fetch(chunk) for chunk in chunks]
         responses = await asyncio.gather(*tasks)
 
         availability = [response for response in responses if response is not None]
@@ -133,24 +136,18 @@ class TorBox:
                 f"{self.api_url}/torrents/mylist?bypass_cache=true"
             )
             get_torrents = await get_torrents.json()
-            exists = False
-            for torrent in get_torrents["data"]:
-                if torrent["hash"] == hash:
-                    exists = True
-                    return "created"
-            if not exists:
-                create_torrent = await self.session.post(
-                    f"{self.api_url}/torrents/createtorrent",
-                    data={"magnet": f"magnet:?xt=urn:btih:{hash}"},
-                )
-                create_torrent = await create_torrent.json()
-                if create_torrent["success"]:
-                    return "created"
-                else:
-                    return "failed"
+            if any(torrent["hash"] == hash for torrent in get_torrents["data"]):
+                return "created"
+
+            create_torrent = await self.session.post(
+                f"{self.api_url}/torrents/createtorrent",
+                data={"magnet": f"magnet:?xt=urn:btih:{hash}"},
+            )
+            create_torrent = await create_torrent.json()
+            return "created" if create_torrent["success"] else "failed"
         except Exception as e:
             logger.warning(
-                f"Exception while getting download link from TorBox for {hash}: {e}"
+                f"Exception while creating torrent on TorBox for {hash}: {e}"
             )
 
     async def generate_download_link(self, hash: str, index: str):
@@ -159,29 +156,17 @@ class TorBox:
                 f"{self.api_url}/torrents/mylist?bypass_cache=true"
             )
             get_torrents = await get_torrents.json()
-            exists = False
-            for torrent in get_torrents["data"]:
-                if torrent["hash"] == hash:
-                    torrent_id = torrent["id"]
-                    exists = True
-                    break
-            if not exists:
+            torrent = next((t for t in get_torrents["data"] if t["hash"] == hash), None)
+
+            if not torrent:
                 create_torrent = await self.session.post(
                     f"{self.api_url}/torrents/createtorrent",
                     data={"magnet": f"magnet:?xt=urn:btih:{hash}"},
                 )
                 create_torrent = await create_torrent.json()
                 torrent_id = create_torrent["data"]["torrent_id"]
-
-                # get_torrents = await self.session.get(
-                #     f"{self.api_url}/torrents/mylist?bypass_cache=true"
-                # )
-                # get_torrents = await get_torrents.json()
-
-            # for torrent in get_torrents["data"]:
-            #     if torrent["id"] == torrent_id:
-            #         file_id = torrent["files"][int(index)]["id"]
-            # Useless, we already have file index
+            else:
+                torrent_id = torrent["id"]
 
             get_download_link = await self.session.get(
                 f"{self.api_url}/torrents/requestdl?token={self.debrid_api_key}&torrent_id={torrent_id}&file_id={index}&zip=false",
@@ -191,5 +176,5 @@ class TorBox:
             return get_download_link["data"]
         except Exception as e:
             logger.warning(
-                f"Exception while getting download link from TorBox for {hash}|{index}: {e}"
+                f"Exception while generating download link from TorBox for {hash}|{index}: {e}"
             )

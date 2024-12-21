@@ -56,6 +56,13 @@ languagesEmoji = {
     "turkish": "🇹🇷",
 }
 
+# Initialize a single aiohttp ClientSession to be reused
+session = aiohttp.ClientSession(raise_for_status=True)
+
+@streams.on_event("shutdown")
+async def shutdown_event():
+    await session.close()
+
 @streams.get("/stream/{type}/{id}.json")
 async def stream_noconfig(request: Request, type: str, id: str):
     return {
@@ -82,40 +89,39 @@ async def create_torrent(request: Request, b64config: str, hash: str):
         config["debridService"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_SERVICE
         config["debridApiKey"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_APIKEY
 
-    async with aiohttp.ClientSession(raise_for_status=True) as session:
-        debrid = getDebrid(
-            session,
-            config,
-            get_client_ip(request)
-            if (
-                not settings.PROXY_DEBRID_STREAM
-                or settings.PROXY_DEBRID_STREAM_PASSWORD
-                != config["debridStreamProxyPassword"]
-            )
-            else "",
+    debrid = getDebrid(
+        session,
+        config,
+        get_client_ip(request)
+        if (
+            not settings.PROXY_DEBRID_STREAM
+            or settings.PROXY_DEBRID_STREAM_PASSWORD
+            != config["debridStreamProxyPassword"]
         )
+        else "",
+    )
 
-        check_premium = await debrid.check_premium()
-        if not check_premium:
-            additional_info = ""
-            if config["debridService"] == "alldebrid":
-                additional_info = "\nCheck your email!"
+    check_premium = await debrid.check_premium()
+    if not check_premium:
+        additional_info = ""
+        if config["debridService"] == "alldebrid":
+            additional_info = "\nCheck your email!"
 
-            return {
-                "streams": [
-                    {
-                        "name": "[⚠️] Comet",
-                        "description": f"Invalid {config['debridService']} account.{additional_info}",
-                        "url": "https://comet.fast",
-                    }
-                ]
-            }
+        return {
+            "streams": [
+                {
+                    "name": "[⚠️] Comet",
+                    "description": f"Invalid {config['debridService']} account.{additional_info}",
+                    "url": "https://comet.fast",
+                }
+            ]
+        }
 
-        torrent = await debrid.create_torrent(hash)
-        if torrent == "failed":
-            return FileResponse("comet/assets/download_failed_v2.mp4")
-        elif torrent == "created":
-            return FileResponse("comet/assets/downloading_v2.mp4")
+    torrent = await debrid.create_torrent(hash)
+    if torrent == "failed":
+        return FileResponse("comet/assets/download_failed_v2.mp4")
+    elif torrent == "created":
+        return FileResponse("comet/assets/downloading_v2.mp4")
 
 @streams.get("/{b64config}/stream/{type}/{id}.json")
 async def stream(
@@ -279,7 +285,7 @@ async def stream(
             tasks.append(get_zilean(session, name, log_name, season, episode))
 
         if settings.SCRAPE_TORRENTIO:
-            tasks.append(get_torrentio(log_name, type, full_id, config["indexers"], config))
+            tasks.append(get_torrentio(log_name, type, full_id, config["indexers"], config, session))
 
         if settings.DDL:
             tasks.append(get_ddl(type, full_id, season, episode))
@@ -581,153 +587,119 @@ async def playback(request: Request, b64config: str, hash: str, index: str):
         config["debridService"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_SERVICE
         config["debridApiKey"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_APIKEY
 
-    async with aiohttp.ClientSession(raise_for_status=True) as session:
-        # Check for cached download link
-        cached_link = await database.fetch_one(
-            f"SELECT link, timestamp FROM download_links WHERE debrid_key = '{config['debridApiKey']}' AND hash = '{hash}' AND file_index = '{index}'"
+    ip = get_client_ip(request)
+    debrid = getDebrid(
+        session,
+        config,
+        ip
+        if (
+            not settings.PROXY_DEBRID_STREAM
+            or settings.PROXY_DEBRID_STREAM_PASSWORD
+            != config["debridStreamProxyPassword"]
         )
+        else "",
+    )
+    download_link = await debrid.generate_download_link(hash, index)
+    if not download_link:
+        return FileResponse("comet/assets/uncached.mp4")
 
-        current_time = time.time()
-        download_link = None
-        if cached_link:
-            link = cached_link["link"]
-            timestamp = cached_link["timestamp"]
-
-            if current_time - timestamp < 3600:
-                download_link = link
-            else:
-                # Cache expired, remove old entry
-                await database.execute(
-                    f"DELETE FROM download_links WHERE debrid_key = '{config['debridApiKey']}' AND hash = '{hash}' AND file_index = '{index}'"
-                )
-
-        ip = get_client_ip(request)
-
-        if not download_link:
-            debrid = getDebrid(
-                session,
-                config,
-                ip
-                if (
-                    not settings.PROXY_DEBRID_STREAM
-                    or settings.PROXY_DEBRID_STREAM_PASSWORD
-                    != config["debridStreamProxyPassword"]
-                )
-                else "",
+    if (
+        settings.PROXY_DEBRID_STREAM
+        and settings.PROXY_DEBRID_STREAM_PASSWORD
+        == config["debridStreamProxyPassword"]
+    ):
+        if settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS != -1:
+            active_ip_connections = await database.fetch_all(
+                "SELECT ip, COUNT(*) as connections FROM active_connections GROUP BY ip"
             )
-            download_link = await debrid.generate_download_link(hash, index)
-            if not download_link:
-                return FileResponse("comet/assets/uncached.mp4")
+            if any(
+                connection["ip"] == ip
+                and connection["connections"]
+                >= settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS
+                for connection in active_ip_connections
+            ):
+                return FileResponse("comet/assets/proxylimit.mp4")
 
-            # Cache the new download link
+        proxy = None
+
+        class Streamer:
+            def __init__(self, id: str):
+                self.id = id
+
+                self.client = httpx.AsyncClient(proxy=proxy, timeout=None)
+                self.response = None
+
+            async def stream_content(self, headers: dict):
+                async with self.client.stream(
+                    "GET", download_link, headers=headers
+                ) as self.response:
+                    async for chunk in self.response.aiter_raw():
+                        yield chunk
+
+            async def close(self):
+                await database.execute(
+                    f"DELETE FROM active_connections WHERE id = '{self.id}'"
+                )
+
+                if self.response is not None:
+                    await self.response.aclose()
+                if self.client is not None:
+                    await self.client.aclose()
+
+        range_header = request.headers.get("range", "bytes=0-")
+
+        try:
+            if config["debridService"] != "torbox":
+                response = await session.head(
+                    download_link, headers={"Range": range_header}
+                )
+            else:
+                response = await session.get(
+                    download_link, headers={"Range": range_header}
+                )
+        except aiohttp.ClientResponseError as e:
+            if e.status == 503 and config["debridService"] == "alldebrid":
+                proxy = (
+                    settings.DEBRID_PROXY_URL
+                )  # proxy is needed only to proxy alldebrid streams
+
+                response = await session.head(
+                    download_link, headers={"Range": range_header}, proxy=proxy
+                )
+            else:
+                logger.warning(f"Exception while proxying {download_link}: {e}")
+                return
+
+        if response.status == 206 or (
+            response.status == 200 and config["debridService"] == "torbox"
+        ):
+            id = str(uuid.uuid4())
             await database.execute(
-                f"INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO download_links (debrid_key, hash, file_index, link, timestamp) VALUES (:debrid_key, :hash, :file_index, :link, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
+                f"INSERT  {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO active_connections (id, ip, content, timestamp) VALUES (:id, :ip, :content, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
                 {
-                    "debrid_key": config["debridApiKey"],
-                    "hash": hash,
-                    "file_index": index,
-                    "link": download_link,
+                    "id": id,
+                    "ip": ip,
+                    "content": str(response.url),
                     "timestamp": current_time,
                 },
             )
 
-        if (
-            settings.PROXY_DEBRID_STREAM
-            and settings.PROXY_DEBRID_STREAM_PASSWORD
-            == config["debridStreamProxyPassword"]
-        ):
-            if settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS != -1:
-                active_ip_connections = await database.fetch_all(
-                    "SELECT ip, COUNT(*) as connections FROM active_connections GROUP BY ip"
-                )
-                if any(
-                    connection["ip"] == ip
-                    and connection["connections"]
-                    >= settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS
-                    for connection in active_ip_connections
-                ):
-                    return FileResponse("comet/assets/proxylimit.mp4")
+            streamer = Streamer(id)
 
-            proxy = None
+            return StreamingResponse(
+                streamer.stream_content({"Range": range_header}),
+                status_code=206,
+                headers={
+                    "Content-Range": response.headers["Content-Range"],
+                    "Content-Length": response.headers["Content-Length"],
+                    "Accept-Ranges": "bytes",
+                },
+                background=BackgroundTask(streamer.close),
+            )
 
-            class Streamer:
-                def __init__(self, id: str):
-                    self.id = id
+        return FileResponse("comet/assets/uncached.mp4")
 
-                    self.client = httpx.AsyncClient(proxy=proxy, timeout=None)
-                    self.response = None
-
-                async def stream_content(self, headers: dict):
-                    async with self.client.stream(
-                        "GET", download_link, headers=headers
-                    ) as self.response:
-                        async for chunk in self.response.aiter_raw():
-                            yield chunk
-
-                async def close(self):
-                    await database.execute(
-                        f"DELETE FROM active_connections WHERE id = '{self.id}'"
-                    )
-
-                    if self.response is not None:
-                        await self.response.aclose()
-                    if self.client is not None:
-                        await self.client.aclose()
-
-            range_header = request.headers.get("range", "bytes=0-")
-
-            try:
-                if config["debridService"] != "torbox":
-                    response = await session.head(
-                        download_link, headers={"Range": range_header}
-                    )
-                else:
-                    response = await session.get(
-                        download_link, headers={"Range": range_header}
-                    )
-            except aiohttp.ClientResponseError as e:
-                if e.status == 503 and config["debridService"] == "alldebrid":
-                    proxy = (
-                        settings.DEBRID_PROXY_URL
-                    )  # proxy is needed only to proxy alldebrid streams
-
-                    response = await session.head(
-                        download_link, headers={"Range": range_header}, proxy=proxy
-                    )
-                else:
-                    logger.warning(f"Exception while proxying {download_link}: {e}")
-                    return
-
-            if response.status == 206 or (
-                response.status == 200 and config["debridService"] == "torbox"
-            ):
-                id = str(uuid.uuid4())
-                await database.execute(
-                    f"INSERT  {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO active_connections (id, ip, content, timestamp) VALUES (:id, :ip, :content, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
-                    {
-                        "id": id,
-                        "ip": ip,
-                        "content": str(response.url),
-                        "timestamp": current_time,
-                    },
-                )
-
-                streamer = Streamer(id)
-
-                return StreamingResponse(
-                    streamer.stream_content({"Range": range_header}),
-                    status_code=206,
-                    headers={
-                        "Content-Range": response.headers["Content-Range"],
-                        "Content-Length": response.headers["Content-Length"],
-                        "Accept-Ranges": "bytes",
-                    },
-                    background=BackgroundTask(streamer.close),
-                )
-
-            return FileResponse("comet/assets/uncached.mp4")
-
-        return RedirectResponse(download_link, status_code=302)
+    return RedirectResponse(download_link, status_code=302)
 
 @streams.get("/{b64config}/playback/{url:path}")
 async def playback(request: Request, b64config: str, url: str):
@@ -743,112 +715,111 @@ async def playback(request: Request, b64config: str, url: str):
         config["debridService"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_SERVICE
         config["debridApiKey"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_APIKEY
 
-    async with aiohttp.ClientSession() as session:
-        current_time = time.time()
-        download_link = None
+    current_time = time.time()
+    download_link = None
 
-        ip = get_client_ip(request)
+    ip = get_client_ip(request)
+    if not download_link:
+        debrid = getDebrid(session, config, ip)
+        download_link = await debrid.generate_hoster_link(url)
         if not download_link:
-            debrid = getDebrid(session, config, ip)
-            download_link = await debrid.generate_hoster_link(url)
-            if not download_link:
-                return FileResponse("comet/assets/uncached.mp4")
-
-        if (
-            settings.PROXY_DEBRID_STREAM
-            and settings.PROXY_DEBRID_STREAM_PASSWORD
-            == config["debridStreamProxyPassword"]
-        ):
-            if settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS != -1:
-                active_ip_connections = await database.fetch_all(
-                    "SELECT ip, COUNT(*) as connections FROM active_connections GROUP BY ip"
-                )
-                if any(
-                    connection["ip"] == ip
-                    and connection["connections"]
-                    >= settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS
-                    for connection in active_ip_connections
-                ):
-                    return FileResponse("comet/assets/proxylimit.mp4")
-
-            proxy = None
-
-            class Streamer:
-                def __init__(self, id: str):
-                    self.id = id
-
-                    self.client = httpx.AsyncClient(proxy=proxy, timeout=None)
-                    self.response = None
-
-                async def stream_content(self, headers: dict):
-                    async with self.client.stream(
-                        "GET", download_link, headers=headers
-                    ) as self.response:
-                        async for chunk in self.response.aiter_raw():
-                            yield chunk
-
-                async def close(self):
-                    await database.execute(
-                        f"DELETE FROM active_connections WHERE id = '{self.id}'"
-                    )
-
-                    if self.response is not None:
-                        await self.response.aclose()
-                    if self.client is not None:
-                        await self.client.aclose()
-
-            range_header = request.headers.get("range", "bytes=0-")
-
-            try:
-                if config["debridService"] != "torbox":
-                    response = await session.head(
-                        download_link, headers={"Range": range_header}
-                    )
-                else:
-                    response = await session.get(
-                        download_link, headers={"Range": range_header}
-                    )
-            except aiohttp.ClientResponseError as e:
-                if e.status == 503 and config["debridService"] == "alldebrid":
-                    proxy = (
-                        settings.DEBRID_PROXY_URL
-                    )  # proxy is needed only to proxy alldebrid streams
-
-                    response = await session.head(
-                        download_link, headers={"Range": range_header}, proxy=proxy
-                    )
-                else:
-                    logger.warning(f"Exception while proxying {download_link}: {e}")
-                    return
-
-            if response.status == 206 or (
-                response.status == 200 and config["debridService"] == "torbox"
-            ):
-                id = str(uuid.uuid4())
-                await database.execute(
-                    f"INSERT  {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO active_connections (id, ip, content, timestamp) VALUES (:id, :ip, :content, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
-                    {
-                        "id": id,
-                        "ip": ip,
-                        "content": str(response.url),
-                        "timestamp": current_time,
-                    },
-                )
-
-                streamer = Streamer(id)
-
-                return StreamingResponse(
-                    streamer.stream_content({"Range": range_header}),
-                    status_code=206,
-                    headers={
-                        "Content-Range": response.headers["Content-Range"],
-                        "Content-Length": response.headers["Content-Length"],
-                        "Accept-Ranges": "bytes",
-                    },
-                    background=BackgroundTask(streamer.close),
-                )
-
             return FileResponse("comet/assets/uncached.mp4")
 
-        return RedirectResponse(download_link, status_code=302)
+    if (
+        settings.PROXY_DEBRID_STREAM
+        and settings.PROXY_DEBRID_STREAM_PASSWORD
+        == config["debridStreamProxyPassword"]
+    ):
+        if settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS != -1:
+            active_ip_connections = await database.fetch_all(
+                "SELECT ip, COUNT(*) as connections FROM active_connections GROUP BY ip"
+            )
+            if any(
+                connection["ip"] == ip
+                and connection["connections"]
+                >= settings.PROXY_DEBRID_STREAM_MAX_CONNECTIONS
+                for connection in active_ip_connections
+            ):
+                return FileResponse("comet/assets/proxylimit.mp4")
+
+        proxy = None
+
+        class Streamer:
+            def __init__(self, id: str):
+                self.id = id
+
+                self.client = httpx.AsyncClient(proxy=proxy, timeout=None)
+                self.response = None
+
+            async def stream_content(self, headers: dict):
+                async with self.client.stream(
+                    "GET", download_link, headers=headers
+                ) as self.response:
+                    async for chunk in self.response.aiter_raw():
+                        yield chunk
+
+            async def close(self):
+                await database.execute(
+                    f"DELETE FROM active_connections WHERE id = '{self.id}'"
+                )
+
+                if self.response is not None:
+                    await self.response.aclose()
+                if self.client is not None:
+                    await self.client.aclose()
+
+        range_header = request.headers.get("range", "bytes=0-")
+
+        try:
+            if config["debridService"] != "torbox":
+                response = await session.head(
+                    download_link, headers={"Range": range_header}
+                )
+            else:
+                response = await session.get(
+                    download_link, headers={"Range": range_header}
+                )
+        except aiohttp.ClientResponseError as e:
+            if e.status == 503 and config["debridService"] == "alldebrid":
+                proxy = (
+                    settings.DEBRID_PROXY_URL
+                )  # proxy is needed only to proxy alldebrid streams
+
+                response = await session.head(
+                    download_link, headers={"Range": range_header}, proxy=proxy
+                )
+            else:
+                logger.warning(f"Exception while proxying {download_link}: {e}")
+                return
+
+        if response.status == 206 or (
+            response.status == 200 and config["debridService"] == "torbox"
+        ):
+            id = str(uuid.uuid4())
+            await database.execute(
+                f"INSERT  {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO active_connections (id, ip, content, timestamp) VALUES (:id, :ip, :content, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
+                {
+                    "id": id,
+                    "ip": ip,
+                    "content": str(response.url),
+                    "timestamp": current_time,
+                },
+            )
+
+            streamer = Streamer(id)
+
+            return StreamingResponse(
+                streamer.stream_content({"Range": range_header}),
+                status_code=206,
+                headers={
+                    "Content-Range": response.headers["Content-Range"],
+                    "Content-Length": response.headers["Content-Length"],
+                    "Accept-Ranges": "bytes",
+                },
+                background=BackgroundTask(streamer.close),
+            )
+
+        return FileResponse("comet/assets/uncached.mp4")
+
+    return RedirectResponse(download_link, status_code=302)
 

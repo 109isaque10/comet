@@ -14,60 +14,69 @@ from fastapi import Request
 from comet.utils.logger import logger
 from comet.utils.models import settings, ConfigModel
 
+# Mapping of language codes to corresponding emojis for display purposes.
 languages_emojis = {
-    "unknown": "❓",  # Unknown
-    "multi": "🌎",  # Dubbed
-    "en": "🇬🇧",  # English
-    "ja": "🇯🇵",  # Japanese
-    "zh": "🇨🇳",  # Chinese
-    "ru": "🇷🇺",  # Russian
-    "ar": "🇸🇦",  # Arabic
-    "pt": "🇵🇹",  # Portuguese
-    "es": "🇪🇸",  # Spanish
-    "fr": "🇫🇷",  # French
-    "de": "🇩🇪",  # German
-    "it": "🇮🇹",  # Italian
-    "ko": "🇰🇷",  # Korean
-    "hi": "🇮🇳",  # Hindi
-    "bn": "🇧🇩",  # Bengali
-    "pa": "🇵🇰",  # Punjabi
-    "mr": "🇮🇳",  # Marathi
-    "gu": "🇮🇳",  # Gujarati
-    "ta": "🇮🇳",  # Tamil
-    "te": "🇮🇳",  # Telugu
-    "kn": "🇮🇳",  # Kannada
-    "ml": "🇮🇳",  # Malayalam
-    "th": "🇹🇭",  # Thai
-    "vi": "🇻🇳",  # Vietnamese
-    "id": "🇮🇩",  # Indonesian
-    "tr": "🇹🇷",  # Turkish
-    "he": "🇮🇱",  # Hebrew
-    "fa": "🇮🇷",  # Persian
-    "uk": "🇺🇦",  # Ukrainian
-    "el": "🇬🇷",  # Greek
-    "lt": "🇱🇹",  # Lithuanian
-    "lv": "🇱🇻",  # Latvian
-    "et": "🇪🇪",  # Estonian
-    "pl": "🇵🇱",  # Polish
-    "cs": "🇨🇿",  # Czech
-    "sk": "🇸🇰",  # Slovak
-    "hu": "🇭🇺",  # Hungarian
-    "ro": "🇷🇴",  # Romanian
-    "bg": "🇧🇬",  # Bulgarian
-    "sr": "🇷🇸",  # Serbian
-    "hr": "🇭🇷",  # Croatian
-    "sl": "🇸🇮",  # Slovenian
-    "nl": "🇳🇱",  # Dutch
-    "da": "🇩🇰",  # Danish
-    "fi": "🇫🇮",  # Finnish
-    "sv": "🇸🇪",  # Swedish
-    "no": "🇳🇴",  # Norwegian
-    "ms": "🇲🇾",  # Malay
-    "la": "💃🏻",  # Latino
+    "unknown": "❓",  # Unknown language
+    "multi": "🌎",    # Multiple languages (Dubbed)
+    "en": "🇬🇧",       # English
+    "ja": "🇯🇵",       # Japanese
+    "zh": "🇨🇳",       # Chinese
+    "ru": "🇷🇺",       # Russian
+    "ar": "🇸🇦",       # Arabic
+    "pt": "🇵🇹",       # Portuguese
+    "es": "🇪🇸",       # Spanish
+    "fr": "🇫🇷",       # French
+    "de": "🇩🇪",       # German
+    "it": "🇮🇹",       # Italian
+    "ko": "🇰🇷",       # Korean
+    "hi": "🇮🇳",       # Hindi
+    "bn": "🇧🇩",       # Bengali
+    "pa": "🇵🇰",       # Punjabi
+    "mr": "🇮🇳",       # Marathi
+    "gu": "🇮🇳",       # Gujarati
+    "ta": "🇮🇳",       # Tamil
+    "te": "🇮🇳",       # Telugu
+    "kn": "🇮🇳",       # Kannada
+    "ml": "🇮🇳",       # Malayalam
+    "th": "🇹🇭",       # Thai
+    "vi": "🇻🇳",       # Vietnamese
+    "id": "🇮🇩",       # Indonesian
+    "tr": "🇹🇷",       # Turkish
+    "he": "🇮🇱",       # Hebrew
+    "fa": "🇮🇷",       # Persian
+    "uk": "🇺🇦",       # Ukrainian
+    "el": "🇬🇷",       # Greek
+    "lt": "🇱🇹",       # Lithuanian
+    "lv": "🇱🇻",       # Latvian
+    "et": "🇪🇪",       # Estonian
+    "pl": "🇵🇱",       # Polish
+    "cs": "🇨🇿",       # Czech
+    "sk": "🇸🇰",       # Slovak
+    "hu": "🇭🇺",       # Hungarian
+    "ro": "🇷🇴",       # Romanian
+    "bg": "🇧🇬",       # Bulgarian
+    "sr": "🇷🇸",       # Serbian
+    "hr": "🇭🇷",       # Croatian
+    "sl": "🇸🇮",       # Slovenian
+    "nl": "🇳🇱",       # Dutch
+    "da": "🇩🇰",       # Danish
+    "fi": "🇫🇮",       # Finnish
+    "sv": "🇸🇪",       # Swedish
+    "no": "🇳🇴",       # Norwegian
+    "ms": "🇲🇾",       # Malay
+    "la": "💃🏻",       # Latino
 }
 
-
 def get_language_emoji(language: str):
+    """
+    Retrieves the emoji corresponding to a given language code.
+    
+    Args:
+        language (str): The language code.
+    
+    Returns:
+        str: The corresponding emoji or the original language code if not found.
+    """
     language_formatted = language.lower()
     return (
         languages_emojis[language_formatted]
@@ -75,7 +84,7 @@ def get_language_emoji(language: str):
         else language
     )
 
-
+# Translation table for normalizing special characters in titles.
 translation_table = {
     "ā": "a",
     "ă": "a",
@@ -168,17 +177,37 @@ translation_table = {
     "ǿ": "o",
 }
 
+# Compile the translation table once at module load for efficiency.
 translation_table = str.maketrans(translation_table)
+
+# Pre-compiled regex patterns for performance.
 info_hash_pattern = re.compile(r"\b([a-fA-F0-9]{40})\b")
 year_pattern = re.compile(r'\d{4}\W')
 s_pattern = re.compile(r"s01-s?(\d{2})")
 e_pattern = re.compile(r"s\d{2}e(\d{2})-e?(\d{2})")
 
 def translate(title: str):
+    """
+    Translates the given title by replacing special characters based on the translation table.
+    
+    Args:
+        title (str): The original title.
+    
+    Returns:
+        str: The translated title.
+    """
     return title.translate(translation_table)
 
-
 def is_video(title: str):
+    """
+    Determines if the given title corresponds to a video file based on its extension.
+    
+    Args:
+        title (str): The title or filename.
+    
+    Returns:
+        bool: True if it's a video file, False otherwise.
+    """
     video_extensions = (
         ".3g2",
         ".3gp",
@@ -220,8 +249,16 @@ def is_video(title: str):
     )
     return title.endswith(video_extensions)
 
-
 def bytes_to_size(bytes: int):
+    """
+    Converts bytes into a human-readable format.
+    
+    Args:
+        bytes (int): The size in bytes.
+    
+    Returns:
+        str: The size formatted as Bytes, KB, MB, GB, or TB.
+    """
     sizes = ["Bytes", "KB", "MB", "GB", "TB"]
     if bytes == 0:
         return "0 Byte"
@@ -233,8 +270,16 @@ def bytes_to_size(bytes: int):
 
     return f"{round(bytes, 2)} {sizes[i]}"
 
-
 def size_to_bytes(size_str: str):
+    """
+    Converts a size string into bytes.
+    
+    Args:
+        size_str (str): The size string (e.g., '2.5 GB').
+    
+    Returns:
+        int or None: The size in bytes or None if parsing fails.
+    """
     sizes = ["bytes", "kb", "mb", "gb", "tb"]
     try:
         value, unit = size_str.split()
@@ -249,8 +294,16 @@ def size_to_bytes(size_str: str):
     except:
         return None
 
-
 def config_check(b64config: str):
+    """
+    Validates and decodes a base64-encoded configuration string.
+    
+    Args:
+        b64config (str): The base64-encoded configuration.
+    
+    Returns:
+        dict or bool: The decoded configuration dictionary or False if invalid.
+    """
     try:
         config = orjson.loads(base64.b64decode(b64config).decode())
         validated_config = ConfigModel(**config)
@@ -258,8 +311,17 @@ def config_check(b64config: str):
     except:
         return False
 
-
 def get_debrid_extension(debridService: str, debridApiKey: str = None):
+    """
+    Maps a debrid service name to its corresponding extension code.
+    
+    Args:
+        debridService (str): The name of the debrid service.
+        debridApiKey (str, optional): The API key for the debrid service.
+    
+    Returns:
+        str or None: The extension code or None if service not found.
+    """
     if debridApiKey == "":
         return "TORRENT"
 
@@ -273,120 +335,145 @@ def get_debrid_extension(debridService: str, debridApiKey: str = None):
 
     return debrid_extensions.get(debridService, None)
 
-# Initialize cache
+# Initialize cache for indexer manager to store previously fetched results.
 indexer_manager_cache = {}
 
+# 1. Abstract Repeated HTTP Request Logic
+async def fetch_json(session: aiohttp.ClientSession, url: str, use_proxy: bool = False, headers: dict = None, timeout: aiohttp.ClientTimeout = None):
+    """
+    Helper function to fetch JSON data from a URL with optional proxy and headers.
+    
+    Args:
+        session (aiohttp.ClientSession): The HTTP session.
+        url (str): The URL to fetch.
+        use_proxy (bool, optional): Whether to use proxy settings.
+        headers (dict, optional): Headers to include in the request.
+        timeout (aiohttp.ClientTimeout, optional): Timeout settings.
+    
+    Returns:
+        dict or list: Parsed JSON response.
+    """
+    try:
+        async with session.get(
+            url,
+            proxy=settings.DEBRID_PROXY_URL if use_proxy else None,
+            headers=headers,
+            timeout=timeout
+        ) as response:
+            response.raise_for_status()
+            return await response.json()
+    except aiohttp.ClientError as e:
+        logger.warning(f"HTTP error while fetching {url}: {e}")
+    except asyncio.TimeoutError:
+        logger.warning(f"Timeout while fetching {url}")
+    except Exception as e:
+        logger.warning(f"Unexpected error while fetching {url}: {e}")
+    return None
+
+# 2. Simplify Conditional Statements in `get_indexer_manager`
 async def get_indexer_manager(
     session: aiohttp.ClientSession,
     indexer_manager_type: str,
     indexers: list,
     query: str
 ):
+    """
+    Fetches results from the specified indexer manager based on the type.
+    
+    Args:
+        session (aiohttp.ClientSession): The HTTP session.
+        indexer_manager_type (str): Type of indexer manager ('jackett' or 'prowlarr').
+        indexers (list): List of indexers to query.
+        query (str): The search query.
+    
+    Returns:
+        list: Fetched results from the indexers.
+    """
     cache_key = f"query:{indexer_manager_type}:{','.join(indexers)}:{query}"
     
-    # Check if results are in cache
     if cache_key in indexer_manager_cache:
         return indexer_manager_cache[cache_key]
     
     results = []
     try:
         indexers = [indexer.replace("_", " ") for indexer in indexers]
-
+        
         if indexer_manager_type == "jackett":
-
-            async def fetch_jackett_results(
-                session: aiohttp.ClientSession, indexer: str, query: str
-            ):
-                try:
-                    async with session.get(
-                        f"{settings.INDEXER_MANAGER_URL}/api/v2.0/indexers/all/results?apikey={settings.INDEXER_MANAGER_API_KEY}&Query={query}&Tracker[]={indexer}",
-                        timeout=aiohttp.ClientTimeout(
-                            total=settings.INDEXER_MANAGER_TIMEOUT
-                        ),
-                    ) as response:
-                        response_json = await response.json()
-                        return response_json.get("Results", [])
-                except Exception as e:
-                    logger.warning(
-                        f"Exception while fetching Jackett results for indexer {indexer}: {e}"
-                    )
-                    return []
-
             tasks = [
-                fetch_jackett_results(session, indexer, query) for indexer in indexers
+                fetch_json(session, 
+                          f"{settings.INDEXER_MANAGER_URL}/api/v2.0/indexers/all/results?apikey={settings.INDEXER_MANAGER_API_KEY}&Query={query}&Tracker[]={indexer}",
+                          timeout=aiohttp.ClientTimeout(total=settings.INDEXER_MANAGER_TIMEOUT))
+                for indexer in indexers
             ]
             all_results = await asyncio.gather(*tasks)
-
             for result_set in all_results:
-                for result in result_set:
-                    result['Seeds'] = result['Seeders']
-                    if 'legendado' in result["Title"].lower():
-                        result["Languages"] = ['en']
-                    elif 'dual' in result["Title"].lower():
-                        result["Languages"] = ['en', 'pt']
-                    elif 'nacional' in result["Title"].lower():
-                        result["Languages"] = ['pt']
-                    elif 'dublado' in result["Title"].lower():
-                        result["Languages"] = ['pt']
-                results.extend(result_set)
-
+                if result_set:
+                    for result in result_set:
+                        result['Seeds'] = result.get('Seeders', 0)
+                        title_lower = result["Title"].lower()
+                        if 'legendado' in title_lower:
+                            result["Languages"] = ['en']
+                        elif 'dual' in title_lower:
+                            result["Languages"] = ['en', 'pt']
+                        elif 'nacional' in title_lower or 'dublado' in title_lower:
+                            result["Languages"] = ['pt']
+                    results.extend(result_set)
+        
         elif indexer_manager_type == "prowlarr":
-            get_indexers = await session.get(
-                f"{settings.INDEXER_MANAGER_URL}/api/v1/indexer",
-                headers={"X-Api-Key": settings.INDEXER_MANAGER_API_KEY},
-            )
-            get_indexers = await get_indexers.json()
-
-            indexers_id = []
-            for indexer in get_indexers:
-                if (
-                    indexer["name"].lower() in indexers
-                    or indexer["definitionName"].lower() in indexers
-                ):
-                    indexers_id.append(indexer["id"])
-
-            response = await session.get(
-                f"{settings.INDEXER_MANAGER_URL}/api/v1/search?query={query}&indexerIds={'&indexerIds='.join(str(indexer_id) for indexer_id in indexers_id)}&type=search",
-                headers={"X-Api-Key": settings.INDEXER_MANAGER_API_KEY},
-            )
-            response = await response.json()
-
-            for result in response:
-                result["InfoHash"] = (
-                    result["infoHash"] if "infoHash" in result else None
-                )
-                result["Title"] = result["title"]
-                result["Size"] = result["size"]
-                result["Seeds"] = result["seeders"]
-                result["Link"] = (
-                    result["downloadUrl"] if "downloadUrl" in result else None
-                )
-                result["Tracker"] = result["indexer"]
-                if 'legendado' in result["Title"].lower():
-                    result["Languages"] = ['en']
-                elif 'dual' in result["Title"].lower():
-                    result["Languages"] = ['en', 'pt']
-                elif 'nacional' in result["Title"].lower():
-                    result["Languages"] = ['pt']
-                elif 'dublado' in result["Title"].lower():
-                    result["Languages"] = ['pt']
-                    
-
-                results.append(result)
-        # After fetching results
+            indexers_data = await fetch_json(session,
+                                            f"{settings.INDEXER_MANAGER_URL}/api/v1/indexer",
+                                            headers={"X-Api-Key": settings.INDEXER_MANAGER_API_KEY})
+            if indexers_data:
+                indexers_id = [
+                    indexer["id"] for indexer in indexers_data
+                    if indexer["name"].lower() in indexers or indexer["definitionName"].lower() in indexers
+                ]
+                search_url = f"{settings.INDEXER_MANAGER_URL}/api/v1/search?query={query}&indexerIds={'&indexerIds='.join(map(str, indexers_id))}&type=search"
+                search_results = await fetch_json(session,
+                                                 search_url,
+                                                 headers={"X-Api-Key": settings.INDEXER_MANAGER_API_KEY})
+                if search_results:
+                    for result in search_results:
+                        result.update({
+                            "InfoHash": result.get("infoHash"),
+                            "Title": result.get("title"),
+                            "Size": result.get("size"),
+                            "Seeds": result.get("seeders", 0),
+                            "Link": result.get("downloadUrl"),
+                            "Tracker": result.get("indexer")
+                        })
+                        title_lower = result["Title"].lower()
+                        if 'legendado' in title_lower:
+                            result["Languages"] = ['en']
+                        elif 'dual' in title_lower:
+                            result["Languages"] = ['en', 'pt']
+                        elif 'nacional' in title_lower or 'dublado' in title_lower:
+                            result["Languages"] = ['pt']
+                        results.append(result)
         indexer_manager_cache[cache_key] = results
     except Exception as e:
         logger.warning(
             f"Exception while getting {indexer_manager_type} results for {query} with {indexers}: {e}"
         )
-        pass
-
+    
     return results
-
 
 async def get_zilean(
     session: aiohttp.ClientSession, name: str, log_name: str, season: int, episode: int
 ):
+    """
+    Fetches torrent results from Zilean based on the provided parameters.
+    
+    Args:
+        session (aiohttp.ClientSession): The HTTP session.
+        name (str): The name of the media.
+        log_name (str): The name used for logging.
+        season (int): The season number.
+        episode (int): The episode number.
+    
+    Returns:
+        list: List of torrent results.
+    """
     results = []
     try:
         show = f"&season={season}&episode={episode}"
@@ -396,6 +483,7 @@ async def get_zilean(
         get_dmm = await get_dmm.json()
 
         if isinstance(get_dmm, list):
+            # Take only the first N results as configured.
             take_first = get_dmm[: settings.ZILEAN_TAKE_FIRST]
             for result in take_first:
                 object = {
@@ -409,76 +497,78 @@ async def get_zilean(
 
         logger.info(f"{len(results)} torrents found for {log_name} with Zilean")
     except Exception as e:
-        logger.wTorrentioarning(
+        logger.warning(
             f"Exception while getting torrents for {log_name} with Zilean: {e}"
         )
         pass
 
     return results
 
-
-async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, config: dict):
+# 3. Use List Comprehensions in `get_torrentio`
+async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, config: dict, session: aiohttp.ClientSession):
+    """
+    Fetches torrent streams from Torrentio based on the provided parameters.
+    
+    Args:
+        log_name (str): The name used for logging.
+        type (str): The type of media ('series' or other).
+        full_id (str): The full identifier for the media.
+        indexers (list): List of indexers to filter results.
+        config (dict): Configuration parameters.
+    
+    Returns:
+        list: List of torrent results.
+    """
     results = []
     try:
         try:
-            get_torrentio = requests.get(
-                f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json"
-            ).json()
+            get_torrentio = fetch_json(session, f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json").json()
         except:
-            get_torrentio = requests.get(
-                f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json",
-                proxies={
-                    "http": settings.DEBRID_PROXY_URL,
-                    "https": settings.DEBRID_PROXY_URL,
-                },
-            ).json()
-
-        for torrent in get_torrentio["streams"]:
+            get_torrentio = fetch_json(session, f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json",
+                                       use_proxy=True).json()
+        
+        for torrent in get_torrentio.get("streams", []):
             title_full = torrent["title"]
-            title = title_full.split("\n")[0]
-            tracker = title_full.split("⚙️ ")[1].split("\n")[0].lower()
-            size = None
-            seeds = None
-            if "👤" in title_full and "💾" in title_full:
-                try:
-                    seeds = int(title_full.split("👤 ")[1].split(" ")[0])
-                    size_str = title_full.split("💾 ")[1].split(" ")[0]
-                    size_unit = title_full.split("💾 ")[1].split(" ")[1].split("\n")[0]
-                    size = size_str + " " + size_unit
-                except:
-                    size = 0.0
-                    seeds = 0
-            languages = []
-            filen = torrent['behaviorHints']['filename'] if 'behaviorHints' in torrent and 'filename' in torrent['behaviorHints'] else None
-            for lang in languages_emojis:
-                emoji = get_language_emoji(lang)
-                if emoji in title_full:
-                    languages.append(lang)
-
-            if tracker in indexers: results.append(
-                {
+            title, tracker = title_full.split("\n")[0], title_full.split("⚙️ ")[1].split("\n")[0].lower()
+            seeds = int(title_full.split("👤 ")[1].split(" ")[0]) if "👤" in title_full and "💾" in title_full else 0
+            size = " ".join(title_full.split("💾 ")[1].split(" ")[:2]) if "💾" in title_full else None
+            languages = [lang for lang in languages_emojis if get_language_emoji(lang) in title_full]
+            filen = torrent.get('behaviorHints', {}).get('filename')
+            
+            if tracker in indexers:
+                results.append({
                     "Title": title,
-                    "InfoHash": torrent["infoHash"],
+                    "InfoHash": torrent.get("infoHash"),
                     "Size": size,
                     "Tracker": f"Torrentio|{tracker}",
                     "Languages": languages,
                     "Seeds": seeds,
                     "filen": filen
-                }
-            )
-
+                })
+        
         logger.info(f"{len(results)} torrents found for {log_name} with Torrentio")
     except Exception as e:
         logger.warning(
             f"Exception while getting torrents for {log_name} with Torrentio, your IP is most likely blacklisted (you should try proxying Comet): {e}"
         )
-        pass
-
+    
     return results
 
 async def get_ddl(
     type: str, full_id: str, season: int, episode: int
 ):
+    """
+    Fetches download links from DDL based on the provided parameters.
+    
+    Args:
+        type (str): The type of media ('series' or other).
+        full_id (str): The full identifier for the media.
+        season (int): The season number.
+        episode (int): The episode number.
+    
+    Returns:
+        list: List of download results.
+    """
     results = []
     try:
         if type == 'series':
@@ -537,15 +627,27 @@ async def get_ddl(
 
     return results
 
-
 async def get_mediafusion(log_name: str, type: str, full_id: str):
+    """
+    Fetches torrent streams from MediaFusion based on the provided parameters.
+    
+    Args:
+        log_name (str): The name used for logging.
+        type (str): The type of media.
+        full_id (str): The full identifier for the media.
+    
+    Returns:
+        list: List of torrent results.
+    """
     results = []
     try:
         try:
+            # Attempt to fetch without proxy.
             get_mediafusion = requests.get(
                 f"{settings.MEDIAFUSION_URL}/stream/{type}/{full_id}.json"
             ).json()
         except:
+            # Fallback to using proxy if initial request fails.
             get_mediafusion = requests.get(
                 f"{settings.MEDIAFUSION_URL}/stream/{type}/{full_id}.json",
                 proxies={
@@ -565,7 +667,7 @@ async def get_mediafusion(log_name: str, type: str, full_id: str):
                     "InfoHash": torrent["infoHash"],
                     "Size": torrent["behaviorHints"][
                         "videoSize"
-                    ],  # not the pack size but still useful for prowlarr userss
+                    ],  # Not the pack size but still useful for Prowlarr users
                     "Tracker": f"MediaFusion|{tracker}",
                 }
             )
@@ -580,7 +682,6 @@ async def get_mediafusion(log_name: str, type: str, full_id: str):
 
     return results
 
-
 async def filter(
     torrents: list,
     name: str,
@@ -591,6 +692,22 @@ async def filter(
     season: int = None,
     episode: int = None,
 ):
+    """
+    Filters the list of torrents based on various criteria.
+    
+    Args:
+        torrents (list): List of torrents to filter.
+        name (str): The name of the media.
+        year (int): The release year.
+        year_end (int): The end year for range filtering.
+        aliases (dict): Aliases for media titles.
+        type (str): The type of media ('series' or other).
+        season (int, optional): Season number for series.
+        episode (int, optional): Episode number for series.
+    
+    Returns:
+        list: Filtered list of torrents with their status.
+    """
     results = []
     series = type == "series"
 
@@ -599,22 +716,40 @@ async def filter(
         if 'torrentio' in tracker.lower():
             results.append((index, True))
         else:
-            if str.format("s{:02d}e{:02d}", season, episode) in result[1]:
+            episode_key = f"s{season:02d}e{episode:02d}"
+            if episode_key in result[1]:
                 if result[0]:
                     results.append((index, True))
-            elif e_pattern.findall(result[1]):
-                # For patterns like s01e03-e05
-                e_match = e_pattern.findall(result[1])
+            else:
+                e_match = e_pattern.search(result[1])
                 if e_match:
-                    start_ep, end_ep = map(int, e_match[0])
+                    start_ep, end_ep = map(int, e_match.groups())
                     if not (start_ep <= episode <= end_ep):
                         results.append((index, False))
-            else:
-                results.append((index, result[0]))
+                else:
+                    results.append((index, result[0]))
     return results
 
+# Cache for filtering results to avoid redundant processing.
 filter_cache = {}
+
+# 4. Enhance Exception Handling in `process_torrent`
 async def process_torrent(title: str, name: str, year: int, year_end: int, aliases: dict, series: bool, season: int) -> list:
+    """
+    Processes a single torrent to determine if it matches the filtering criteria.
+    
+    Args:
+        title (str): The title of the torrent.
+        name (str): The name of the media.
+        year (int): The release year.
+        year_end (int): The end year for range filtering.
+        aliases (dict): Aliases for media titles.
+        series (bool): Indicates if the media is a series.
+        season (int): Season number for series.
+    
+    Returns:
+        list: A list containing a boolean indicating match and the processed title.
+    """
     cache_key = f"filter:{title}:{name}:{year}:{year_end}:{series}:{season}"
     filter_bool = False
     try:
@@ -622,52 +757,61 @@ async def process_torrent(title: str, name: str, year: int, year_end: int, alias
             return filter_cache[cache_key]
         if "\n" in title:
             title = title.split("\n")[1]
-
+        
         ptitle = title.split(' - ')[0]
         if not ptitle or not title_match(name, ptitle, aliases=aliases):
             return [filter_bool, title]
         
-        pyear_match = year_pattern.findall(title)
-        if year and pyear_match:
-            pyear = int(pyear_match[0])
-            if year_end is not None and not (year <= pyear <= year_end):
+        pyear_match = year_pattern.search(title)
+        if pyear_match:
+            pyear = int(pyear_match.group())
+            if year_end and not (year <= pyear <= year_end):
                 return [filter_bool, title]
-            if year_end is None and not (year - 1 <= pyear <= year + 1):
+            if not year_end and not (year - 1 <= pyear <= year + 1):
                 return [filter_bool, title]
-
+        
         if series and season is not None:
             ltitle = title.lower()
             if "s01-" in ltitle:
-                s_match = s_pattern.findall(ltitle)
-                if s_match and not int(s_match[0]) <= season:
+                s_match = s_pattern.search(ltitle)
+                if s_match and int(s_match.group(1)) < season:
                     return [filter_bool, title]
-            elif not any((str.format("s{:02d}", season) in ltitle, 'complet' in ltitle)):
+            elif not (f"s{season:02d}" in ltitle or 'complet' in ltitle):
                 return [filter_bool, title]
-
+        
         filter_bool = True
         return [filter_bool, title]
     except Exception as e:
         logger.error(f"Error processing torrent {title}: {e}")
-        return False
+        return [filter_bool, title]
     finally:
-        if cache_key not in filter_cache:
-            filter_cache[cache_key] = [filter_bool, title]
+        filter_cache.setdefault(cache_key, [filter_bool, title])
 
-# Initialize cache
+# Cache for storing torrent hashes to improve performance.
 hash_cache = {}
 
+# 5. Consolidate Cache Checks in `get_torrent_hash`
 async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
-    index = torrent[0]
-    torrent = torrent[1]
-    if torrent.get("InfoHash") is not None:
-        return (index, torrent["InfoHash"].lower())
-    cache_key = f"infohash:{torrent.get('Guid')}"
+    """
+    Retrieves the info hash for a given torrent, utilizing caching to enhance performance.
     
+    Args:
+        session (aiohttp.ClientSession): The HTTP session.
+        torrent (tuple): A tuple containing the index and torrent dictionary.
+    
+    Returns:
+        tuple: A tuple containing the index and the info hash.
+    """
+    index, torrent_data = torrent
+    info_hash = torrent_data.get("InfoHash")
+    if info_hash:
+        return (index, info_hash.lower())
+    
+    cache_key = f"infohash:{torrent_data.get('Guid')}"
     if cache_key in hash_cache:
         return (index, hash_cache[cache_key])
-        
-    url = torrent.get("Link", "")
     
+    url = torrent_data.get("Link", "")
     try:
         timeout = aiohttp.ClientTimeout(total=settings.GET_TORRENT_TIMEOUT)
         async with session.get(url, allow_redirects=False, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"}) as response:
@@ -685,16 +829,26 @@ async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
                         hash_value = match.group(1).lower()
                         hash_cache[cache_key] = hash_value
     except (aiohttp.ClientError, asyncio.TimeoutError, bencodepy.BencodeDecodeError) as e:
-        logger.warning(f"Error fetching torrent hash for {torrent.get('Tracker', 'Unknown')}|{url}: {e}")
+        logger.warning(f"Error fetching torrent hash for {torrent_data.get('Tracker', 'Unknown')}|{url}: {e}")
     except Exception as e:
-        logger.warning(f"Unexpected error fetching torrent hash for {torrent.get('Tracker', 'Unknown')}|{url}: {e}")
+        logger.warning(f"Unexpected error fetching torrent hash for {torrent_data.get('Tracker', 'Unknown')}|{url}: {e}")
     
-    return (index, hash_cache.get(cache_key, None))
+    return (index, hash_cache.get(cache_key))
 
-# Initialize cache
+# Initialize cache for balanced hashes to optimize repeated computations.
 balanced_hashes_cache = {}
 
 def get_balanced_hashes(hashes: dict, config: dict):
+    """
+    Balances the number of hashes based on resolution and configuration limits.
+    
+    Args:
+        hashes (dict): Dictionary of hashes categorized by resolution.
+        config (dict): Configuration parameters.
+    
+    Returns:
+        dict: Balanced dictionary of hashes by resolution.
+    """
     max_results = config["maxResults"]
     max_results_per_resolution = config["maxResultsPerResolution"]
 
@@ -714,12 +868,12 @@ def get_balanced_hashes(hashes: dict, config: dict):
 
     hashes_by_resolution = {}
     for hash_key, hash_data in hashes.items():
-        # Use cached evaluation
+        # Use cached evaluation if available.
         if hash_key in balanced_hashes_cache:
             if not balanced_hashes_cache[hash_key]:
                 continue
         else:
-            # Evaluate hash criteria
+            # Evaluate hash criteria.
             try:
                 if remove_trash and not hash_data["fetch"]:
                     balanced_hashes_cache[hash_key] = False
@@ -745,7 +899,7 @@ def get_balanced_hashes(hashes: dict, config: dict):
                     balanced_hashes_cache[hash_key] = False
                     continue
 
-                # Passed all checks
+                # Passed all checks.
                 balanced_hashes_cache[hash_key] = True
             except KeyError as e:
                 logger.error(f"Missing key: {e}")
@@ -757,6 +911,7 @@ def get_balanced_hashes(hashes: dict, config: dict):
         if resolution:
             hashes_by_resolution.setdefault(resolution, []).append(hash_key)
 
+    # Reverse the order of hashes if configured.
     if config["reverseResultOrder"]:
         hashes_by_resolution = {
             res: lst[::-1] for res, lst in hashes_by_resolution.items()
@@ -795,8 +950,16 @@ def get_balanced_hashes(hashes: dict, config: dict):
 
     return balanced_hashes
 
-
 def format_metadata(data: dict):
+    """
+    Formats metadata information into a single string separated by '|'.
+    
+    Args:
+        data (dict): Dictionary containing metadata fields.
+    
+    Returns:
+        str: Formatted metadata string.
+    """
     extras = []
     if data["quality"]:
         extras.append(data["quality"])
@@ -825,9 +988,18 @@ QUALITY_PATTERNS = {
 }
 
 def format_data(data: dict):
+    """
+    Formats torrent data by extracting and categorizing various attributes.
+    
+    Args:
+        data (dict): Dictionary containing torrent data.
+    
+    Returns:
+        dict: Formatted data dictionary with categorized attributes.
+    """
     title_lower = data["Title"].lower()
     
-    # Use dict comprehension for default values
+    # Initialize default values using dictionary comprehension.
     dat = {
         "title": data["Title"],
         "tracker": data["Tracker"],
@@ -844,20 +1016,32 @@ def format_data(data: dict):
         "dubbed": ""
     }
 
-    # Use regex for resolution matching
+    # Determine quality based on predefined patterns.
     for quality, patterns in QUALITY_PATTERNS.items():
         if any(pattern in title_lower for pattern in patterns):
             dat["quality"] = quality
             break
 
-    # Simplified conditional checks
+    # Determine HDR type.
     dat["hdr"] = ["HDR10"] if "hdr10" in title_lower else ["HDR"] if "hdr" in title_lower else ["SDR"]
+    # Determine audio type.
     dat["audio"] = ["Dolby"] if "dolby" in title_lower else ["DTS"] if "dts" in title_lower else ["Unknown"]
+    # Determine audio channels.
     dat["channels"] = ["7.1"] if "7.1" in title_lower else ["5.1"] if "5.1" in title_lower else ["2.1"]
 
     return dat
 
 def format_title(data: dict, config: dict):
+    """
+    Constructs the display title based on the configuration and data.
+    
+    Args:
+        data (dict): Dictionary containing torrent data.
+        config (dict): Configuration parameters.
+    
+    Returns:
+        str: Formatted title string.
+    """
     result_format = config["resultFormat"]
     has_all = "All" in result_format
 
@@ -870,10 +1054,9 @@ def format_title(data: dict, config: dict):
         if metadata != "":
             title += f"💿 {metadata}\n"
 
-    if has_all or "Size" in result_format and data["size"] != None:
+    if has_all or ("Size" in result_format and data["size"] != None):
         b = "b" in str(data['size']).lower()
         p = "." in str(data['size'])
-        #title += f"💾 {bytes_to_size(int(data['size']))} " if not "." in str(data['size']) and not "b" in str(data['size']) elif "b" in str(data['size']) f"💾 {data['size']}"
         if not b and not p:
             title += f"💾 {bytes_to_size(int(data['size']))}"
         else:
@@ -885,7 +1068,8 @@ def format_title(data: dict, config: dict):
     if has_all or "Languages" in result_format:
         languages = data["languages"]
         if data["dubbed"]:
-            languages.insert(0, "multi")
+            if not "multi" in languages:
+                languages.insert(0, "multi")
         if languages:
             formatted_languages = "/".join(
                 get_language_emoji(language) for language in languages
@@ -894,21 +1078,39 @@ def format_title(data: dict, config: dict):
             title += f"{languages_str}"
 
     if title == "":
-        # Without this, Streamio shows SD as the result, which is confusing
+        # Default message to avoid confusion in Streamio.
         title = "Empty result format configuration"
 
     return title
 
-
 def get_client_ip(request: Request):
+    """
+    Retrieves the client's IP address from the request headers.
+    
+    Args:
+        request (Request): The incoming HTTP request.
+    
+    Returns:
+        str: The client's IP address.
+    """
     return (
         request.headers["cf-connecting-ip"]
         if "cf-connecting-ip" in request.headers
         else request.client.host
     )
 
-
 async def get_aliases(session: aiohttp.ClientSession, media_type: str, media_id: str):
+    """
+    Fetches aliases for a given media from the Trakt.tv API.
+    
+    Args:
+        session (aiohttp.ClientSession): The HTTP session.
+        media_type (str): The type of media ('movie' or 'series').
+        media_id (str): The identifier for the media.
+    
+    Returns:
+        dict: A dictionary of aliases categorized by country.
+    """
     aliases = {}
     try:
         response = await session.get(
