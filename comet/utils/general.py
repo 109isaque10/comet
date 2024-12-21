@@ -5,33 +5,13 @@ import aiohttp
 import bencodepy
 import asyncio
 import orjson
-import time
-import copy
 
-from RTN import parse, title_match
+from RTN import title_match
 from curl_cffi import requests
 from fastapi import Request
 
 from comet.utils.logger import logger
-from comet.utils.models import database, settings, ConfigModel
-
-# Pre-compile regex patterns
-INFO_HASH_PATTERN = re.compile(r"\b([a-fA-F0-9]{40})\b")
-RESOLUTION_PATTERN = re.compile(r'(2160p|1080p|720p|480p)', re.IGNORECASE)
-QUALITY_PATTERNS = {
-    '2160p': ['2160p', '4k'],
-    '1080p': ['1080p'],
-    '720p': ['720p'],
-    '480p': ['480p']
-}
-
-# Cache common string operations
-COMMON_TITLE_MARKERS = {
-    'legendado': ['en'],
-    'dual': ['en', 'pt'],
-    'nacional': ['pt'],
-    'dublado': ['pt']
-}
+from comet.utils.models import settings, ConfigModel
 
 languages_emojis = {
     "unknown": "❓",  # Unknown
@@ -190,7 +170,8 @@ translation_table = {
 
 translation_table = str.maketrans(translation_table)
 info_hash_pattern = re.compile(r"\b([a-fA-F0-9]{40})\b")
-
+year_pattern = re.compile(r'\d{4}\W')
+s_pattern = re.compile(r"s01-s?(\d{2})")
 
 def translate(title: str):
     return title.translate(translation_table)
@@ -291,6 +272,8 @@ def get_debrid_extension(debridService: str, debridApiKey: str = None):
 
     return debrid_extensions.get(debridService, None)
 
+# Initialize cache
+indexer_manager_cache = {}
 
 async def get_indexer_manager(
     session: aiohttp.ClientSession,
@@ -298,6 +281,12 @@ async def get_indexer_manager(
     indexers: list,
     query: str
 ):
+    cache_key = f"query:{indexer_manager_type}:{','.join(indexers)}:{query}"
+    
+    # Check if results are in cache
+    if cache_key in indexer_manager_cache:
+        return indexer_manager_cache[cache_key]
+    
     results = []
     try:
         indexers = [indexer.replace("_", " ") for indexer in indexers]
@@ -374,6 +363,8 @@ async def get_indexer_manager(
                             break
 
                 results.append(result)
+        # After fetching results
+        indexer_manager_cache[cache_key] = results
     except Exception as e:
         logger.warning(
             f"Exception while getting {indexer_manager_type} results for {query} with {indexers}: {e}"
@@ -601,180 +592,157 @@ async def filter(
 
     return results
 
+filter_cache = {}
 async def process_torrent(title: str, name: str, year: int, year_end: int, aliases: dict, series: bool, season: int) -> bool:
-    year_pattern = re.compile(r'\d{4}\W')
-    s_pattern = re.compile(r"s01-s?(\d{2})")
+    cache_key = f"filter:{title}:{name}:{year}:{year_end}:{aliases}:{series}:{season}"
     try:
+        if cache_key in filter_cache:
+            return filter_cache[cache_key]
+        filter_bool = False
         if "\n" in title:
             title = title.split("\n")[1]
 
         ptitle = title.split(' - ')[0]
         if not ptitle or not title_match(name, ptitle, aliases=aliases):
-            return False
+            return filter_bool
         
         pyear_match = year_pattern.findall(title)
         if year and pyear_match:
             pyear = int(pyear_match[0])
             if year_end is not None and not (year <= pyear <= year_end):
-                return False
+                return filter_bool
             if year_end is None and not (year - 1 <= pyear <= year + 1):
-                return False
+                return filter_bool
 
         if series and season is not None:
             ltitle = title.lower()
             if "s01-" in ltitle:
                 s_match = s_pattern.findall(ltitle)
                 if s_match and int(s_match[0]) < season:
-                    return False
+                    return filter_bool
             elif not any((str.format("s{:02d}", season) in ltitle, 'complet' in ltitle)):
-                return False
+                return filter_bool
 
-        return True
+        filter_bool = True
+        return filter_bool
     except Exception as e:
         logger.error(f"Error processing torrent {title}: {e}")
         return False
+    finally:
+        filter_cache[cache_key] = filter_bool
+
+# Initialize cache
+hash_cache = {}
 
 async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
     index = torrent[0]
     torrent = torrent[1]
-    if "InfoHash" in torrent and torrent["InfoHash"] is not None:
+    cache_key = f"infohash:{torrent.get('Link')}"
+    
+    if cache_key in hash_cache:
+        return (index, hash_cache[cache_key])
+    
+    if torrent.get("InfoHash") is not None:
+        hash_cache[cache_key] = torrent["InfoHash"].lower()
         return (index, torrent["InfoHash"].lower())
-
-    url = torrent["Link"]
+        
+    url = torrent.get("Link", "")
     
     try:
         timeout = aiohttp.ClientTimeout(total=settings.GET_TORRENT_TIMEOUT)
-        response = await session.get(url, allow_redirects=False, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
-        if response.status == 200:
-            torrent_data = await response.read()
-            torrent_dict = bencodepy.decode(torrent_data)
-            info = bencodepy.encode(torrent_dict[b"info"])
-            hash = hashlib.sha1(info).hexdigest()
-        else:
-            location = response.headers.get("Location", "")
-            if not location:
-                return (index, None)
-
-            match = info_hash_pattern.search(location)
-            if not match:
-                return (index, None)
-
-            hash = match.group(1).upper()
-
-        return (index, hash.lower())
-    except aiohttp.ClientError as e:
-        logger.warning(
-            f"Client error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
-        )
-    except asyncio.TimeoutError as e:
-        logger.warning(
-            f"Timeout error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
-        )
-    except bencodepy.BencodeDecodeError as e:
-        logger.warning(
-            f"Bencode decode error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
-        )
+        async with session.get(url, allow_redirects=False, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"}) as response:
+            if response.status == 200:
+                torrent_data = await response.read()
+                torrent_dict = bencodepy.decode(torrent_data)
+                info = bencodepy.encode(torrent_dict[b"info"])
+                hash_value = hashlib.sha1(info).hexdigest().lower()
+                hash_cache[cache_key] = hash_value
+            else:
+                location = response.headers.get("Location", "")
+                if location:
+                    match = info_hash_pattern.search(location)
+                    if match:
+                        hash_value = match.group(1).lower()
+                        hash_cache[cache_key] = hash_value
+    except (aiohttp.ClientError, asyncio.TimeoutError, bencodepy.BencodeDecodeError) as e:
+        logger.warning(f"Error fetching torrent hash for {torrent.get('Tracker', 'Unknown')}|{url}: {e}")
     except Exception as e:
-        logger.warning(
-            f"Unexpected error while getting torrent info hash for {torrent['indexer'] if 'indexer' in torrent else (torrent['Tracker'] if 'Tracker' in torrent else '')}|{url}: {e}"
-        )
-
-    return (index, None)
-
-def should_include_hash(data: dict, config: dict) -> bool:
-    """
-    Determine if a hash should be included based on configuration filters
+        logger.warning(f"Unexpected error fetching torrent hash for {torrent.get('Tracker', 'Unknown')}|{url}: {e}")
     
-    Args:
-        data: Dictionary containing torrent data
-        config: Dictionary containing filter configuration
-    
-    Returns:
-        bool: True if hash should be included, False otherwise
-    """
-    try:
-        # Skip if no data
-        if not data or "data" not in data:
-            return False
-            
-        torrent_data = data["data"]
-        
-        # Check minimum/maximum size if configured
-        size = torrent_data.get("size", 0)
-        if config.get("minSize") and size < config["minSize"]:
-            return False
-        if config.get("maxSize") and size > config["maxSize"]:
-            return False
-            
-        # Check resolution if configured
-        resolution = torrent_data.get("resolution", "").lower()
-        allowed_resolutions = set(res.lower() for res in config.get("resolutions", []))
-        if allowed_resolutions and "all" not in allowed_resolutions:
-            if resolution not in allowed_resolutions:
-                return False
-                
-        # Check required/excluded terms
-        title = torrent_data.get("title", "").lower()
-        if config.get("requiredTerms"):
-            if not all(term.lower() in title for term in config["requiredTerms"]):
-                return False
-        if config.get("excludedTerms"):
-            if any(term.lower() in title for term in config["excludedTerms"]):
-                return False
-                
-        return True
-        
-    except Exception as e:
-        logger.warning(f"Error checking hash inclusion: {e}")
-        return False
+    return (index, hash_cache.get(cache_key, None))
 
-def get_balanced_hashes(hashes: dict, config: dict) -> dict:
-    # Early returns for empty cases
-    if not hashes or not config:
-        return {}
+# Initialize cache
+balanced_hashes_cache = {}
 
-    # Extract config values once
+def get_balanced_hashes(hashes: dict, config: dict):
     max_results = config["maxResults"]
     max_results_per_resolution = config["maxResultsPerResolution"]
-    config_resolutions = set(resolution.lower() for resolution in config["resolutions"])
+
+    max_size = config["maxSize"]
+    config_resolutions = [resolution.lower() for resolution in config["resolutions"]]
     include_all_resolutions = "all" in config_resolutions
+    remove_trash = config["removeTrash"]
 
-    # Use dict comprehension for filtering
-    filtered_hashes = {
-        hash: data for hash, data in hashes.items()
-        if should_include_hash(data, config)
-    }
+    languages = [language.lower() for language in config["languages"]]
+    include_all_languages = "all" in languages
+    if not include_all_languages:
+        config_languages = [
+            code
+            for code, name in PTT.parse.LANGUAGES_TRANSLATION_TABLE.items()
+            if name.lower() in languages
+        ]
 
-    # Group by resolution using defaultdict
-    from collections import defaultdict
-    hashes_by_resolution = defaultdict(list)
-    for hash, data in filtered_hashes.items():
-        resolution = data["data"]["resolution"]
-        if include_all_resolutions or resolution in config_resolutions:
-            hashes_by_resolution[resolution].append(hash)
+    hashes_by_resolution = {}
+    for hash_key, hash_data in hashes.items():
+        # Use cached evaluation
+        if hash_key in balanced_hashes_cache:
+            if not balanced_hashes_cache[hash_key]:
+                continue
+        else:
+            # Evaluate hash criteria
+            try:
+                if remove_trash and not hash_data.get("fetch", False):
+                    balanced_hashes_cache[hash_key] = False
+                    continue
 
-    return balance_results_by_resolution(
-        hashes_by_resolution, 
-        max_results, 
-        max_results_per_resolution,
-        config.get("reverseResultOrder", False)
-    )
+                hash_info = hash_data.get("data", {})
 
-def balance_results_by_resolution(
-    hashes_by_resolution: dict,
-    max_results: int,
-    max_results_per_resolution: int,
-    reverse_order: bool = False
-) -> dict:
-    """Balance results across different resolutions based on configured limits"""
-    
-    if not hashes_by_resolution:
-        return {}
-        
+                if max_size and hash_info.get("size", 0) > max_size:
+                    balanced_hashes_cache[hash_key] = False
+                    continue
+
+                if (
+                    not include_all_languages
+                    and not any(lang in hash_info.get("languages", []) for lang in config_languages)
+                    and (("multi" not in languages) if hash_info.get("dubbed", False) else True)
+                    and not (len(hash_info.get("languages", [])) == 0 and "unknown" in languages)
+                ):
+                    balanced_hashes_cache[hash_key] = False
+                    continue
+
+                resolution = hash_info.get("resolution", "").lower()
+                if not include_all_resolutions and resolution not in config_resolutions:
+                    balanced_hashes_cache[hash_key] = False
+                    continue
+
+                # Passed all checks
+                balanced_hashes_cache[hash_key] = True
+            except KeyError as e:
+                logger.error(f"Missing key: {e}")
+                balanced_hashes_cache[hash_key] = False
+                continue
+
+        resolution = hash_info.get("resolution", "").lower()
+        if resolution:
+            hashes_by_resolution.setdefault(resolution, []).append(hash_key)
+
+    if config["reverseResultOrder"]:
+        hashes_by_resolution = {
+            res: lst[::-1] for res, lst in hashes_by_resolution.items()
+        }
+
     total_resolutions = len(hashes_by_resolution)
-    
-    # If no limits set, return all results
-    if max_results == 0 and max_results_per_resolution == 0:
+    if (max_results == 0 and max_results_per_resolution == 0) or total_resolutions == 0:
         return hashes_by_resolution
 
     # Calculate hashes per resolution
@@ -824,6 +792,13 @@ def format_metadata(data: dict):
         extras.append(data["group"])
 
     return "|".join(extras)
+
+QUALITY_PATTERNS = {
+    "4K": ["2160p", "4k"],
+    "1080p": ["1080p", "fullhd"],
+    "720p": ["720p", "hd"],
+    "SD": ["480p", "sd"]
+}
 
 def format_data(data: dict):
     title_lower = data["Title"].lower()
@@ -928,74 +903,3 @@ async def get_aliases(session: aiohttp.ClientSession, media_type: str, media_id:
     return aliases
 
 
-async def add_torrent_to_cache(
-    config: dict, name: str, season: int, episode: int, sorted_ranked_files: dict
-):
-    try:
-
-        values = []
-        for torrent in sorted_ranked_files.values():
-            if 'searched-' in torrent:
-                continue
-            values.append({
-                "debridService": config["debridService"],
-                "info_hash": torrent["infohash"],
-                "name": name,
-                "season": season,
-                "episode": episode,
-                "tracker": torrent["data"]["tracker"].split("|")[0].lower(),
-                "data": orjson.dumps(torrent).decode("utf-8"),
-                "timestamp": time.time(),
-            })
-
-        if not values:
-            return
-
-        query = f"""
-            INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
-            INTO cache (debridService, info_hash, name, season, episode, tracker, data, timestamp)
-            VALUES (:debridService, :info_hash, :name, :season, :episode, :tracker, :data, :timestamp)
-            {' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}
-        """
-
-        await database.execute_many(query, values)
-        logger.info(f"Cached {len(values)} results for {name}")
-
-    except Exception as e:
-        logger.error(f"Error caching results: {str(e)}")
-
-async def add_uncached_to_cache(
-    config: dict, name: str, season: int, episode: int, uncached: dict
-):
-    try:
-        values = []
-        for hash, torrent in uncached.items():
-            dat = format_data(torrent)
-            torrent["data"] = dat
-            
-            values.append({
-                "debridService": config["debridService"],
-                "info_hash": hash,
-                "name": name,
-                "season": season,
-                "episode": episode,
-                "tracker": torrent["Tracker"].split("|")[0].lower(),
-                "data": orjson.dumps(torrent).decode("utf-8"),
-                "timestamp": time.time(),
-            })
-
-        if not values:
-            return
-
-        query = f"""
-            INSERT {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}
-            INTO uncache (debridService, info_hash, name, season, episode, tracker, data, timestamp)
-            VALUES (:debridService, :info_hash, :name, :season, :episode, :tracker, :data, :timestamp)
-            {' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}
-        """
-
-        await database.execute_many(query, values)
-        logger.info(f"Cached {len(values)} uncached results for {name}")
-
-    except Exception as e:
-        logger.error(f"Error caching uncached results: {str(e)}")
