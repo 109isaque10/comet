@@ -41,6 +41,23 @@ from comet.utils.models import database, rtn, settings, trackers
 
 streams = APIRouter()
 
+languagesEmoji = {
+    "unknown": "❓",
+    "multi": "🌎",
+    "english": "🇬🇧",
+    "portuguese": "🇵🇹",
+    "spanish": "🇪🇸",
+    "french": "🇫🇷",
+    "german": "🇩🇪",
+    "italian": "🇮🇹",
+    "dutch": "🇳🇱",
+    "russian": "🇷🇺",
+    "japanese": "🇯🇵",
+    "chinese": "🇨🇳",
+    "korean": "🇰🇷",
+    "arabic": "🇸🇦",
+    "turkish": "🇹🇷",
+}
 
 @streams.get("/stream/{type}/{id}.json")
 async def stream_noconfig(request: Request, type: str, id: str):
@@ -198,13 +215,6 @@ async def stream(
             )
             config["debridApiKey"] = settings.PROXY_DEBRID_STREAM_DEBRID_DEFAULT_APIKEY
 
-        if config["debridApiKey"] == "":
-            services = ["realdebrid", "alldebrid", "premiumize", "torbox", "debridlink"]
-            debrid_emoji = "⬇️"
-        else:
-            services = [config["debridService"]]
-            debrid_emoji = "⚡"
-
         results = []
         if (
             config["debridStreamProxyPassword"] != ""
@@ -219,158 +229,6 @@ async def stream(
                     "url": "https://comet.fast",
                 }
             )
-
-        indexers = config["indexers"].copy()
-        if settings.SCRAPE_TORRENTIO:
-            indexers.append("torrentio")
-        if settings.SCRAPE_MEDIAFUSION:
-            indexers.append("mediafusion")
-        if settings.ZILEAN_URL:
-            indexers.append("dmm")
-        if settings.DDL:
-            indexers.append("ddl")
-        indexers_json = orjson.dumps(indexers).decode("utf-8")
-
-        all_sorted_ranked_files = {}
-        trackers_found = (
-            set()
-        )  # we want to check that we have a cache for each of the user's trackers
-        the_time = time.time()
-        cache_ttl = settings.CACHE_TTL
-        uncached = {}
-
-        for debrid_service in services:
-            cached_results = await database.fetch_all(
-                f"""
-                    SELECT info_hash, tracker, data
-                    FROM cache
-                    WHERE debridService = :debrid_service
-                    AND name = :name
-                    AND ((cast(:season as INTEGER) IS NULL AND season IS NULL) OR season = cast(:season as INTEGER))
-                    AND ((cast(:episode as INTEGER) IS NULL AND episode IS NULL) OR episode = cast(:episode as INTEGER))
-                    AND tracker IN (SELECT cast(value as TEXT) FROM {'json_array_elements_text' if settings.DATABASE_TYPE == 'postgresql' else 'json_each'}(:indexers))
-                    AND timestamp + :cache_ttl >= :current_time
-                """,
-                {
-                    "debrid_service": debrid_service,
-                    "name": name,
-                    "season": season,
-                    "episode": episode,
-                    "indexers": indexers_json,
-                    "cache_ttl": cache_ttl,
-                    "current_time": the_time,
-                },
-            )
-            for result in cached_results:
-                trackers_found.add(result["tracker"].lower())
-
-                hash = result["info_hash"]
-                if "searched" in hash:
-                    continue
-                logger.warning(hash)
-                all_sorted_ranked_files[hash] = orjson.loads(result["data"])
-            uncached_results = await database.fetch_all(
-                f"""
-                    SELECT info_hash, tracker, data
-                    FROM uncache
-                    WHERE debridService = :debrid_service
-                    AND name = :name
-                    AND ((cast(:season as INTEGER) IS NULL AND season IS NULL) OR season = cast(:season as INTEGER))
-                    AND ((cast(:episode as INTEGER) IS NULL AND episode IS NULL) OR episode = cast(:episode as INTEGER))
-                    AND tracker IN (SELECT cast(value as TEXT) FROM {'json_array_elements_text' if settings.DATABASE_TYPE == 'postgresql' else 'json_each'}(:indexers))
-                    AND timestamp + :cache_ttl >= :current_time
-                """,
-                {
-                    "debrid_service": debrid_service,
-                    "name": name,
-                    "season": season,
-                    "episode": episode,
-                    "indexers": indexers_json,
-                    "cache_ttl": cache_ttl,
-                    "current_time": the_time,
-                },
-            )
-            for result in uncached_results:
-                trackers_found.add(result["tracker"].lower())
-
-                hash = result["info_hash"]
-                if "searched" in hash:
-                    continue
-                logger.warning(hash)
-                uncached[hash] = orjson.loads(result["data"])
-
-        if len(all_sorted_ranked_files) != 0 and set(indexers).issubset(trackers_found):
-            debrid_extension = get_debrid_extension(
-                debrid_service, config["debridApiKey"]
-            )
-            balanced_hashes = get_balanced_hashes(all_sorted_ranked_files, config)
-
-            for resolution in balanced_hashes:
-                for hash in balanced_hashes[resolution]:
-                    data = all_sorted_ranked_files[hash]["data"]
-                    the_stream = {
-                        "name": f"[{debrid_extension}{debrid_emoji}] Comet {data['resolution']}",
-                        "description": format_title(data, config),
-                        "torrentTitle": (
-                            data["torrent_title"] if "torrent_title" in data else None
-                        ),
-                        "torrentSize": (
-                            data["torrent_size"] if "torrent_size" in data else None
-                        ),
-                        "behaviorHints": {
-                            "filename": data["raw_title"],
-                            "bingeGroup": "comet|" + hash,
-                        },
-                    }
-
-                    if config["debridApiKey"] != "":
-                        the_stream["url"] = (
-                            f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{hash}/{data['index']}"
-                        )
-                    else:
-                        the_stream["infoHash"] = hash
-                        index = data["index"]
-                        the_stream["fileIdx"] = (
-                            1 if "|" in index else int(index)
-                        )  # 1 because for Premiumize it's impossible to get the file index
-                        the_stream["sources"] = trackers
-
-                    results.append(the_stream)
-            if len(uncached) != 0:
-                uncached_results = []
-                for hash in uncached:
-                    data = uncached[hash]["data"]
-                    uncached_results.append(
-                        {
-                            "name": f"[{debrid_extension}⬇️] Comet {data['quality']}",
-                            "description": format_title(data, config)+" 👤 "+str(data["Seeds"]),
-                            "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
-                            "behaviorHints": {
-                                "filename": data["title"],
-                                "bingeGroup": "comet|"+hash,
-                            },
-                        }
-                    )
-                uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
-                uncached_results.sort(key=lambda x: '🇵🇹' not in x['description'].split(" 👤 ")[0].lower())
-                results.extend(uncached_results)
-
-                logger.info(
-                    f"{len(all_sorted_ranked_files)} cached results found for {log_name}"
-                )
-            return {"streams": results}
-
-        if config["debridApiKey"] == "":
-            return {
-                "streams": [
-                    {
-                        "name": "[⚠️] Comet",
-                        "description": "No cache found for Direct Torrenting.",
-                        "url": "https://comet.fast",
-                    }
-                ]
-            }
-        logger.info(f"No cache found for {log_name} with user configuration")
 
         debrid = getDebrid(session, config, get_client_ip(request))
 
@@ -482,13 +340,10 @@ async def stream(
                     for i in range(0, len(indexed_torrents), chunk_size)
                 ]
 
-                remove_adult_content = (
-                    settings.REMOVE_ADULT_CONTENT and config["removeTrash"]
-                )
                 tasks = []
                 for chunk in chunks:
                     tasks.append(
-                        filter(chunk, name, year, year_end, aliases, remove_adult_content, type, season)
+                        filter(chunk, name, year, year_end, aliases, type, season)
                     )
 
                 filtered_torrents = await asyncio.gather(*tasks)
@@ -600,8 +455,7 @@ async def stream(
                 uncached[hash] = torrents_by_hash[hash]
 
         uncached_results = []
-        sortLanguageCode = (code for code, name in settings.LANGUAGES.items() if name.lower() == config["sortLanguage"].lower())
-        sortLanguage = get_language_emoji(sortLanguageCode)
+        sortLanguage = languagesEmoji.get(config["sortLanguage"].lower(), "🇬🇧")
         if len(uncached) != 0:
             f = 1
             for hash in uncached:
@@ -616,8 +470,6 @@ async def stream(
                         "bingeGroup": "comet|"+uncached[hash]["InfoHash"],
                     },
                 })
-            #uncached_results.sort(key=lambda x: int(x['description'].split(" 👤 ")[1]), reverse=True)
-            #uncached_results.sort(key=lambda x: sortLanguage not in x['description'].split(" 👤 ")[0].lower())
             uncached_results.sort(key=lambda x: (
                 sortLanguage not in x['description'].split(" 👤 ")[0].lower(),  # Sort by language presence (Portuguese first)
                 -int(x['description'].split(" 👤 ")[1])  # Sort by seeds in descending order
@@ -652,15 +504,6 @@ async def stream(
             sorted_ranked_files[hash]["data"]["index"] = files[hash]["index"]
             if "Languages" in torrents_by_hash[hash]:
                 sorted_ranked_files[hash]["data"]["languages"] = torrents_by_hash[hash]["Languages"]
-
-        #background_tasks.add_task(
-        #    add_torrent_to_cache, config, name, season, episode, sorted_ranked_files
-        #)
-       # background_tasks.add_task(
-       #     add_uncached_to_cache, config, name, season, episode, uncached
-        #)
-
-        #logger.info(f"Results have been cached for {log_name}")
 
         balanced_hashes = get_balanced_hashes(sorted_ranked_files, config)
         
