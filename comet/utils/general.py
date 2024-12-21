@@ -172,6 +172,7 @@ translation_table = str.maketrans(translation_table)
 info_hash_pattern = re.compile(r"\b([a-fA-F0-9]{40})\b")
 year_pattern = re.compile(r'\d{4}\W')
 s_pattern = re.compile(r"s01-s?(\d{2})")
+e_pattern = re.compile(r"s\d{2}e(\d{2})-e?(\d{2})")
 
 def translate(title: str):
     return title.translate(translation_table)
@@ -602,7 +603,7 @@ async def filter(
     return results
 
 filter_cache = {}
-async def process_torrent(title: str, name: str, year: int, year_end: int, aliases: dict, series: bool, season: int) -> bool:
+async def process_torrent(title: str, name: str, year: int, year_end: int, aliases: dict, series: bool, season: int, episode: int) -> bool:
     cache_key = f"filter:{title}:{name}:{year}:{year_end}:{aliases}:{series}:{season}"
     filter_bool = False
     try:
@@ -627,9 +628,16 @@ async def process_torrent(title: str, name: str, year: int, year_end: int, alias
             ltitle = title.lower()
             if "s01-" in ltitle:
                 s_match = s_pattern.findall(ltitle)
-                if s_match and int(s_match[0]) < season:
+                if s_match and not int(s_match[0]) <= season:
                     return filter_bool
-            elif not any((str.format("s{:02d}", season) in ltitle, 'complet' in ltitle)):
+            elif e_pattern.findall(ltitle):
+                # For patterns like s01e03-e05
+                e_match = e_pattern.findall(ltitle)
+                if e_match:
+                    start_ep, end_ep = map(int, e_match[0])
+                    if not (start_ep <= episode <= end_ep):
+                        return filter_bool
+            elif not any((str.format("s{:02d}", season) in ltitle, 'complet' in ltitle, str.format("s{:02d}e{:02d}", season, episode) in ltitle)):
                 return filter_bool
 
         filter_bool = True
@@ -646,14 +654,12 @@ hash_cache = {}
 async def get_torrent_hash(session: aiohttp.ClientSession, torrent: tuple):
     index = torrent[0]
     torrent = torrent[1]
-    cache_key = f"infohash:{torrent.get('Link')}"
+    if torrent.get("InfoHash") is not None:
+        return (index, torrent["InfoHash"].lower())
+    cache_key = f"infohash:{torrent.get('Guid')}"
     
     if cache_key in hash_cache:
         return (index, hash_cache[cache_key])
-    
-    if torrent.get("InfoHash") is not None:
-        hash_cache[cache_key] = torrent["InfoHash"].lower()
-        return (index, torrent["InfoHash"].lower())
         
     url = torrent.get("Link", "")
     
