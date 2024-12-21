@@ -647,7 +647,8 @@ async def process_torrent(title: str, name: str, year: int, year_end: int, alias
         logger.error(f"Error processing torrent {title}: {e}")
         return False
     finally:
-        filter_cache[cache_key] = filter_bool
+        if cache_key not in filter_cache:
+            filter_cache[cache_key] = filter_bool
 
 # Initialize cache
 hash_cache = {}
@@ -717,26 +718,26 @@ def get_balanced_hashes(hashes: dict, config: dict):
         else:
             # Evaluate hash criteria
             try:
-                if remove_trash and not hash_data.get("fetch", False):
+                if remove_trash and not hash_data["fetch"]:
                     balanced_hashes_cache[hash_key] = False
                     continue
 
-                hash_info = hash_data.get("data", {})
+                hash_info = hash_data["data"]
 
-                if max_size and hash_info.get("size", 0) > max_size:
+                if max_size != 0 and hash_info["size"] > max_size:
                     balanced_hashes_cache[hash_key] = False
                     continue
 
                 if (
                     not include_all_languages
-                    and not any(lang in hash_info.get("languages", []) for lang in config_languages)
-                    and (("multi" not in languages) if hash_info.get("dubbed", False) else True)
-                    and not (len(hash_info.get("languages", [])) == 0 and "unknown" in languages)
+                    and not any(lang in hash_info["languages"] for lang in config_languages)
+                    and (("multi" not in languages) if hash_info["dubbed"] else True)
+                    and not (len(hash_info["languages"]) == 0 and "unknown" in languages)
                 ):
                     balanced_hashes_cache[hash_key] = False
                     continue
 
-                resolution = hash_info.get("resolution", "").lower()
+                resolution = hash_info["resolution"].lower()
                 if not include_all_resolutions and resolution not in config_resolutions:
                     balanced_hashes_cache[hash_key] = False
                     continue
@@ -748,7 +749,7 @@ def get_balanced_hashes(hashes: dict, config: dict):
                 balanced_hashes_cache[hash_key] = False
                 continue
 
-        resolution = hash_info.get("resolution", "").lower()
+        resolution = hash_info["resolution"].lower()
         if resolution:
             hashes_by_resolution.setdefault(resolution, []).append(hash_key)
 
