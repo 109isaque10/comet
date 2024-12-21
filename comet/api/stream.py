@@ -57,7 +57,12 @@ languagesEmoji = {
 }
 
 # Initialize a single aiohttp ClientSession to be reused
-session = aiohttp.ClientSession(raise_for_status=True)
+session = None
+
+@streams.on_event("startup")
+async def startup_event():
+    global session
+    session = aiohttp.ClientSession(raise_for_status=True)
 
 @streams.on_event("shutdown")
 async def shutdown_event():
