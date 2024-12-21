@@ -595,10 +595,10 @@ async def filter(
     series = type == "series"
 
     for index, title, tracker in torrents:
+        result = await process_torrent(title, name, year, year_end, aliases, series, season)
         if 'torrentio' in tracker.lower():
             results.append((index, True))
         else:
-            result = await process_torrent(title, name, year, year_end, aliases, series, season, episode)
             if str.format("s{:02d}e{:02d}", season, episode) in result[1]:
                 if result[0]:
                     results.append((index, True))
