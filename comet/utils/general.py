@@ -3,6 +3,7 @@ import hashlib
 import re
 import aiohttp
 import bencodepy
+import PTT
 import asyncio
 import orjson
 
@@ -65,16 +66,15 @@ languages_emojis = {
     "la": "💃🏻",  # Latino
 }
 
-from functools import lru_cache
 
-@lru_cache(maxsize=1024)
-def get_language_emoji(language: str) -> str:
+def get_language_emoji(language: str):
     language_formatted = language.lower()
-    return languages_emojis.get(language_formatted, language)
+    return (
+        languages_emojis[language_formatted]
+        if language_formatted in languages_emojis
+        else language
+    )
 
-@lru_cache(maxsize=1024)
-def translate(title: str) -> str:
-    return title.translate(translation_table)
 
 translation_table = {
     "ā": "a",
@@ -319,10 +319,14 @@ async def get_indexer_manager(
             for result_set in all_results:
                 for result in result_set:
                     result['Seeds'] = result['Seeders']
-                    for keyword, languages in COMMON_TITLE_MARKERS.items():
-                        if keyword in result["Title"].lower():
-                            result["Languages"] = languages
-                            break
+                    if 'legendado' in result["Title"].lower():
+                        result["Languages"] = ['en']
+                    elif 'dual' in result["Title"].lower():
+                        result["Languages"] = ['en', 'pt']
+                    elif 'nacional' in result["Title"].lower():
+                        result["Languages"] = ['pt']
+                    elif 'dublado' in result["Title"].lower():
+                        result["Languages"] = ['pt']
                 results.extend(result_set)
 
         elif indexer_manager_type == "prowlarr":
@@ -357,10 +361,15 @@ async def get_indexer_manager(
                     result["downloadUrl"] if "downloadUrl" in result else None
                 )
                 result["Tracker"] = result["indexer"]
-                for keyword, languages in COMMON_TITLE_MARKERS.items():
-                        if keyword in result["Title"].lower():
-                            result["Languages"] = languages
-                            break
+                if 'legendado' in result["Title"].lower():
+                    result["Languages"] = ['en']
+                elif 'dual' in result["Title"].lower():
+                    result["Languages"] = ['en', 'pt']
+                elif 'nacional' in result["Title"].lower():
+                    result["Languages"] = ['pt']
+                elif 'dublado' in result["Title"].lower():
+                    result["Languages"] = ['pt']
+                    
 
                 results.append(result)
         # After fetching results
@@ -745,32 +754,35 @@ def get_balanced_hashes(hashes: dict, config: dict):
     if (max_results == 0 and max_results_per_resolution == 0) or total_resolutions == 0:
         return hashes_by_resolution
 
-    # Calculate hashes per resolution
     hashes_per_resolution = (
-        max_results // total_resolutions if max_results > 0 
+        max_results // total_resolutions
+        if max_results > 0
         else max_results_per_resolution
     )
-    extra_hashes = max_results % total_resolutions if max_results > 0 else 0
+    extra_hashes = max_results % total_resolutions
 
-    # Balance results
-    balanced = {}
-    remaining_extra = extra_hashes
-    
+    balanced_hashes = {}
     for resolution, hash_list in hashes_by_resolution.items():
-        if reverse_order:
-            hash_list = hash_list[::-1]
-            
-        selected_count = hashes_per_resolution
-        if remaining_extra > 0:
-            selected_count += 1
-            remaining_extra -= 1
-            
+        selected_count = hashes_per_resolution + (1 if extra_hashes > 0 else 0)
         if max_results_per_resolution > 0:
             selected_count = min(selected_count, max_results_per_resolution)
-            
-        balanced[resolution] = hash_list[:selected_count]
+        balanced_hashes[resolution] = hash_list[:selected_count]
+        if extra_hashes > 0:
+            extra_hashes -= 1
 
-    return balanced
+    selected_total = sum(len(hashes) for hashes in balanced_hashes.values())
+    if selected_total < max_results:
+        missing_hashes = max_results - selected_total
+        for resolution, hash_list in hashes_by_resolution.items():
+            if missing_hashes <= 0:
+                break
+            current_count = len(balanced_hashes[resolution])
+            available_hashes = hash_list[current_count : current_count + missing_hashes]
+            balanced_hashes[resolution].extend(available_hashes)
+            missing_hashes -= len(available_hashes)
+
+    return balanced_hashes
+
 
 def format_metadata(data: dict):
     extras = []
