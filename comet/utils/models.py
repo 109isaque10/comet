@@ -70,7 +70,7 @@ settings = AppSettings()
 class ConfigModel(BaseModel):
     indexers: List[str]
     languages: Optional[List[str]] = ["All"]
-    sortlanguage: Optional[str] = 'English'
+    sortLanguage: Optional[str] = 'English'
     resolutions: Optional[List[str]] = ["All"]
     reverseResultOrder: Optional[bool] = False
     removeTrash: Optional[bool] = True
