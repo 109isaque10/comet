@@ -423,7 +423,15 @@ async def stream(
         if len(torrents) == 0:
             return {"streams": []}
 
+        logger.info(f"Number of torrents before filtering: {len(torrents)}")
+        
+        # Log all torrents that have 'Domain' key
+        domain_torrents = [t for t in torrents if 'Domain' in t]
+        logger.info(f"Number of torrents with 'Domain' key: {len(domain_torrents)}")
+        
+        # Create torrents_by_hash and log count
         torrents_by_hash = {torrent["InfoHash"]: torrent for torrent in torrents if 'Domain' not in torrent}
+        logger.info(f"Number of torrents in torrents_by_hash: {len(torrents_by_hash)}")
         files = await debrid.get_files(
             list({hash[1] for hash in torrent_hashes if hash[1] is not None}),
             type,
