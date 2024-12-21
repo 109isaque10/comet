@@ -726,6 +726,9 @@ def get_balanced_hashes(hashes: dict, config: dict):
                     continue
 
                 hash_info = hash_data["data"]
+                if not hash_info:
+                    logger.error(f"hash_info is missing 'data' key.\n{hash_data}")
+                    continue
 
                 if max_size != 0 and hash_info["size"] > max_size:
                     balanced_hashes_cache[hash_key] = False
