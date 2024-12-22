@@ -461,16 +461,12 @@ async def stream(
         for hash in torrents_by_hash:
             if hash not in files:
                 uncached[hash] = torrents_by_hash[hash]
-        
-        # Add format_data result to each uncached torrent
-        #for hash in uncached:
-            #uncached[hash]["data"] = format_data(uncached[hash])
 
         uncached_ranked_files = set()
         for hash in uncached:
             try:
                 ranked_file = rtn.rank(
-                    uncached[hash]["Title"],
+                    torrents_by_hash[hash]["Title"],
                     hash,
                     remove_trash=False,  # user can choose if he wants to remove it
                 )
@@ -481,12 +477,23 @@ async def stream(
 
         uncached_results = []
         uncached_ranked_files = sort_torrents(uncached_ranked_files)
+        uncached_ranked_files = {
+            key: (value.model_dump() if isinstance(value, Torrent) else value)
+            for key, value in uncached_ranked_files.items()
+        }
+        for hash in uncached_ranked_files:  # needed for caching
+            uncached_ranked_files[hash]["data"]["title"] = torrents_by_hash[hash]["Title"]
+            uncached_ranked_files[hash]["data"]["tracker"] = torrents_by_hash[hash]["Tracker"]
+            uncached_ranked_files[hash]["data"]["size"] = torrents_by_hash[hash]["Size"]
+            if "Languages" in torrents_by_hash[hash]:
+                uncached_ranked_files[hash]["data"]["languages"] = torrents_by_hash[hash]["Languages"]
         # Apply balanced_hashes to uncached list
         balanced_uncached_hashes = get_balanced_hashes(uncached_ranked_files, config)
         sortLanguage = languagesEmoji.get(config["sortLanguage"].lower(), "🇬🇧")
-        if len(uncached) != 0:
-            f = 1
-            for hash in balanced_uncached_hashes:
+        f = 1
+        for resolution in balanced_hashes:
+            for hash in balanced_hashes[resolution]:
+                dat = uncached_ranked_files[hash]["data"]
                 uncached_results.append({
                     "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
                     "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
@@ -496,10 +503,10 @@ async def stream(
                         "bingeGroup": "comet|"+uncached[hash]["InfoHash"],
                     },
                 })
-            uncached_results.sort(key=lambda x: (
-                sortLanguage not in x['description'].split(" 👤 ")[0].lower(),  # Sort by language presence (Portuguese first)
-                -int(x['description'].split(" 👤 ")[1])  # Sort by seeds in descending order
-            ))
+        uncached_results.sort(key=lambda x: (
+            sortLanguage not in x['description'].split(" 👤 ")[0].lower(),  # Sort by language presence (Portuguese first)
+            -int(x['description'].split(" 👤 ")[1])  # Sort by seeds in descending order
+        ))
 
         sorted_ranked_files = sort_torrents(ranked_files)
 
