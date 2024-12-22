@@ -463,18 +463,29 @@ async def stream(
                 uncached[hash] = torrents_by_hash[hash]
         
         # Add format_data result to each uncached torrent
+        #for hash in uncached:
+            #uncached[hash]["data"] = format_data(uncached[hash])
+
+        uncached_ranked_files = set()
         for hash in uncached:
-            uncached[hash]["data"] = format_data(uncached[hash])
+            try:
+                ranked_file = rtn.rank(
+                    uncached[hash]["Title"],
+                    hash,
+                    remove_trash=False,  # user can choose if he wants to remove it
+                )
+
+                uncached_ranked_files.add(ranked_file)
+            except:
+                pass
 
         uncached_results = []
         # Apply balanced_hashes to uncached list
-        balanced_uncached_hashes = get_balanced_hashes(uncached, config)
+        balanced_uncached_hashes = get_balanced_hashes(uncached_ranked_files, config)
         sortLanguage = languagesEmoji.get(config["sortLanguage"].lower(), "🇬🇧")
         if len(uncached) != 0:
             f = 1
             for hash in balanced_uncached_hashes:
-                dat = uncached[hash]
-                dat = format_data(dat)
                 uncached_results.append({
                     "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
                     "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
