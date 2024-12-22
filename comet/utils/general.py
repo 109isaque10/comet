@@ -339,7 +339,7 @@ def get_debrid_extension(debridService: str, debridApiKey: str = None):
 indexer_manager_cache = {}
 
 # 1. Abstract Repeated HTTP Request Logic
-async def fetch_json(session: aiohttp.ClientSession, url: str, use_proxy: bool = False, headers: dict = None, timeout: aiohttp.ClientTimeout = None):
+async def fetch_json(session: aiohttp.ClientSession, url: str, use_proxy: bool = False, headers: dict = None, timeout: aiohttp.ClientTimeout = None, result: str = None):
     """
     Helper function to fetch JSON data from a URL with optional proxy and headers.
     
@@ -361,7 +361,10 @@ async def fetch_json(session: aiohttp.ClientSession, url: str, use_proxy: bool =
             timeout=timeout
         ) as response:
             response.raise_for_status()
-            return await response.json()
+            response = await response.json()
+            if result:
+                return response[result]
+            return response
     except aiohttp.ClientError as e:
         logger.warning(f"HTTP error while fetching {url}: {e}")
     except asyncio.TimeoutError:
@@ -402,7 +405,8 @@ async def get_indexer_manager(
             tasks = [
                 fetch_json(session, 
                           f"{settings.INDEXER_MANAGER_URL}/api/v2.0/indexers/all/results?apikey={settings.INDEXER_MANAGER_API_KEY}&Query={query}&Tracker[]={indexer}",
-                          timeout=aiohttp.ClientTimeout(total=settings.INDEXER_MANAGER_TIMEOUT))
+                          timeout=aiohttp.ClientTimeout(total=settings.INDEXER_MANAGER_TIMEOUT),
+                          result="Results")
                 for indexer in indexers
             ]
             all_results = await asyncio.gather(*tasks)
@@ -411,10 +415,10 @@ async def get_indexer_manager(
                     for result in result_set:
                         result['Seeds'] = result.get('Seeders', 0)
                         title_lower = result["Title"].lower()
-                        if 'legendado' in title_lower:
-                            result["Languages"] = ['en']
-                        elif 'dual' in title_lower:
+                        if 'dual' in title_lower:
                             result["Languages"] = ['en', 'pt']
+                        elif 'legendado' in title_lower:
+                            result["Languages"] = ['en']
                         elif 'nacional' in title_lower or 'dublado' in title_lower:
                             result["Languages"] = ['pt']
                     results.extend(result_set)
@@ -443,10 +447,10 @@ async def get_indexer_manager(
                             "Tracker": result.get("indexer")
                         })
                         title_lower = result["Title"].lower()
-                        if 'legendado' in title_lower:
-                            result["Languages"] = ['en']
-                        elif 'dual' in title_lower:
+                        if 'dual' in title_lower:
                             result["Languages"] = ['en', 'pt']
+                        elif 'legendado' in title_lower:
+                            result["Languages"] = ['en']
                         elif 'nacional' in title_lower or 'dublado' in title_lower:
                             result["Languages"] = ['pt']
                         results.append(result)
@@ -522,10 +526,10 @@ async def get_torrentio(log_name: str, type: str, full_id: str, indexers: list, 
     results = []
     try:
         try:
-            get_torrentio = fetch_json(session, f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json").json()
+            get_torrentio = await fetch_json(session, f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json")
         except:
-            get_torrentio = fetch_json(session, f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json",
-                                       use_proxy=True).json()
+            get_torrentio = await fetch_json(session, f"https://torrentio.strem.fun/brazuca/stream/{type}/{full_id}.json",
+                                       use_proxy=True)
         
         for torrent in get_torrentio.get("streams", []):
             title_full = torrent["title"]

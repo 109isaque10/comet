@@ -461,12 +461,18 @@ async def stream(
         for hash in torrents_by_hash:
             if hash not in files:
                 uncached[hash] = torrents_by_hash[hash]
+        
+        # Add format_data result to each uncached torrent
+        for hash in uncached:
+            uncached[hash]["data"] = format_data(uncached[hash])
 
         uncached_results = []
+        # Apply balanced_hashes to uncached list
+        balanced_uncached_hashes = get_balanced_hashes(uncached, config)
         sortLanguage = languagesEmoji.get(config["sortLanguage"].lower(), "🇬🇧")
         if len(uncached) != 0:
             f = 1
-            for hash in uncached:
+            for hash in balanced_uncached_hashes:
                 dat = uncached[hash]
                 dat = format_data(dat)
                 uncached_results.append({
@@ -678,6 +684,7 @@ async def playback(request: Request, b64config: str, hash: str, index: str):
         if response.status == 206 or (
             response.status == 200 and config["debridService"] == "torbox"
         ):
+            current_time = time.time()
             id = str(uuid.uuid4())
             await database.execute(
                 f"INSERT  {'OR IGNORE ' if settings.DATABASE_TYPE == 'sqlite' else ''}INTO active_connections (id, ip, content, timestamp) VALUES (:id, :ip, :content, :timestamp){' ON CONFLICT DO NOTHING' if settings.DATABASE_TYPE == 'postgresql' else ''}",
