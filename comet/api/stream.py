@@ -491,8 +491,8 @@ async def stream(
         balanced_uncached_hashes = get_balanced_hashes(uncached_ranked_files, config)
         sortLanguage = languagesEmoji.get(config["sortLanguage"].lower(), "🇬🇧")
         f = 1
-        for resolution in balanced_hashes:
-            for hash in balanced_hashes[resolution]:
+        for resolution in balanced_uncached_hashes:
+            for hash in balanced_uncached_hashes[resolution]:
                 dat = uncached_ranked_files[hash]["data"]
                 uncached_results.append({
                     "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
