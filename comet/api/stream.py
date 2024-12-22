@@ -480,6 +480,7 @@ async def stream(
                 pass
 
         uncached_results = []
+        uncached_ranked_files = sort_torrents(uncached_ranked_files)
         # Apply balanced_hashes to uncached list
         balanced_uncached_hashes = get_balanced_hashes(uncached_ranked_files, config)
         sortLanguage = languagesEmoji.get(config["sortLanguage"].lower(), "🇬🇧")
