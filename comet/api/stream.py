@@ -564,6 +564,7 @@ async def stream(
                         "torrentTitle": data["torrent_title"],
                         "torrentSize": data["torrent_size"],
                         "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{hash}/{data['index']}",
+                        "infoHash": hash,
                         "behaviorHints": {
                             "filename": data["raw_title"],
                             "bingeGroup": "comet|" + hash,
