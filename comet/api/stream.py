@@ -498,6 +498,9 @@ async def stream(
                     "name": f"[{debrid_extension}⬇️] Comet {dat['quality']}",
                     "description": format_title(dat, config)+" 👤 "+str(uncached[hash]["Seeds"]),
                     "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/createTorrent/{hash}",
+                    "infoHash": uncached[hash]["InfoHash"],
+                    "seeds": str(uncached[hash]["Seeds"]),
+                    "tracker": dat["tracker"],
                     "behaviorHints": {
                         "filename": uncached[hash]["Title"],
                         "bingeGroup": "comet|"+uncached[hash]["InfoHash"],
@@ -528,6 +531,7 @@ async def stream(
             sorted_ranked_files[hash]["data"]["tracker"] = torrents_by_hash[hash]["Tracker"]
             sorted_ranked_files[hash]["data"]["size"] = files[hash]["size"]
             torrent_size = torrents_by_hash[hash]["Size"]
+            sorted_ranked_files[hash]["data"]["seeds"] = torrents_by_hash[hash]["Seeds"]
             sorted_ranked_files[hash]["data"]["size"] = (
                 files[hash]["size"]
             )
@@ -565,6 +569,8 @@ async def stream(
                         "torrentSize": data["torrent_size"],
                         "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{hash}/{data['index']}",
                         "infoHash": hash,
+                        "seeds": str(data["seeds"]),
+                        "tracker": data["tracker"],
                         "behaviorHints": {
                             "filename": data["raw_title"],
                             "bingeGroup": "comet|" + hash,
