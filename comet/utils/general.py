@@ -1051,7 +1051,10 @@ def format_title(data: dict, config: dict):
 
     title = ""
     if has_all or "Title" in result_format:
-        title += f"{data['title']}\n"
+        if 'torrent_title' in data:
+            title += f"{data['torrent_title']}\n"
+        else:
+            title += f"{data['title']}\n"
 
     if has_all or "Metadata" in result_format:
         metadata = format_metadata(data)
