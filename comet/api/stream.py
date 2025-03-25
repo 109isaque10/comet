@@ -501,6 +501,7 @@ async def stream(
                     "infoHash": uncached[hash]["InfoHash"],
                     "seeds": str(uncached[hash]["Seeds"]),
                     "tracker": dat["tracker"],
+                    "size": dat["size"],
                     "behaviorHints": {
                         "filename": uncached[hash]["Title"],
                         "bingeGroup": "comet|"+uncached[hash]["InfoHash"],
@@ -567,6 +568,7 @@ async def stream(
                         "description": format_title(data, config),
                         "torrentTitle": data["torrent_title"],
                         "torrentSize": data["torrent_size"],
+                        "size": data["torrent_size"],
                         "url": f"{request.url.scheme}://{request.url.netloc}/{b64config}/playback/{hash}/{data['index']}",
                         "infoHash": hash,
                         "seeds": str(data["seeds"]),
