@@ -720,7 +720,7 @@ async def filter(
         if 'torrentio' in tracker.lower():
             results.append((index, True))
         else:
-            episode_key = None
+            episode_key = ''
             if series:
                 episode_key = f"s{season:02d}e{episode:02d}"
             if episode_key in result[1]:
