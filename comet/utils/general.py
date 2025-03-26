@@ -720,7 +720,9 @@ async def filter(
         if 'torrentio' in tracker.lower():
             results.append((index, True))
         else:
-            episode_key = f"s{season:02d}e{episode:02d}"
+            episode_key = None
+            if series:
+                episode_key = f"s{season:02d}e{episode:02d}"
             if episode_key in result[1]:
                 if result[0]:
                     results.append((index, True))
@@ -754,7 +756,9 @@ async def process_torrent(title: str, name: str, year: int, year_end: int, alias
     Returns:
         list: A list containing a boolean indicating match and the processed title.
     """
-    cache_key = f"filter:{title}:{name}:{year}:{year_end}:{series}:{season}"
+    cache_key = f"filter:{title}:{name}:{year}:{year_end}:{series}"
+    if series:
+        cache_key += ":{season}"
     filter_bool = False
     try:
         if cache_key in filter_cache:
